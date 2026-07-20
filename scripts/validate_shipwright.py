@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Optional
@@ -280,6 +281,7 @@ def _validate_marketplaces(
 def _parse_yaml_scalar(
     raw_value: str, relative_path: Path, line_number: int, errors: list[str]
 ) -> Any:
+    raw_value = _strip_yaml_inline_comment(raw_value).rstrip()
     if raw_value.startswith('"'):
         try:
             value = json.loads(raw_value)
@@ -300,15 +302,57 @@ def _parse_yaml_scalar(
                 f"{_display(relative_path)}:{line_number}: malformed single-quoted scalar"
             )
             return None
-        return raw_value[1:-1].replace("''", "'")
+        interior = raw_value[1:-1]
+        decoded: list[str] = []
+        index = 0
+        while index < len(interior):
+            if interior[index] != "'":
+                decoded.append(interior[index])
+                index += 1
+                continue
+            if index + 1 < len(interior) and interior[index + 1] == "'":
+                decoded.append("'")
+                index += 2
+                continue
+            errors.append(
+                f"{_display(relative_path)}:{line_number}: malformed single-quoted scalar"
+            )
+            return None
+        return "".join(decoded)
     if raw_value.endswith(("'", '"')):
         errors.append(f"{_display(relative_path)}:{line_number}: malformed quoted scalar")
         return None
-    if raw_value == "true":
+    if raw_value.lower() == "true":
         return True
-    if raw_value == "false":
+    if raw_value.lower() == "false":
         return False
     return raw_value
+
+
+def _strip_yaml_inline_comment(raw_value: str) -> str:
+    """Remove a YAML separation comment without treating quoted hashes as comments."""
+
+    quote = raw_value[0] if raw_value.startswith(("'", '"')) else None
+    index = 1 if quote is not None else 0
+    in_quote = quote is not None
+    while index < len(raw_value):
+        character = raw_value[index]
+        if in_quote and quote == '"' and character == "\\":
+            index += 2
+            continue
+        if in_quote and character == quote:
+            if quote == "'" and index + 1 < len(raw_value) and raw_value[index + 1] == "'":
+                index += 2
+                continue
+            in_quote = False
+        elif (
+            not in_quote
+            and character == "#"
+            and (index == 0 or raw_value[index - 1].isspace())
+        ):
+            return raw_value[:index].rstrip()
+        index += 1
+    return raw_value.rstrip()
 
 
 def _parse_constrained_yaml(
@@ -398,11 +442,11 @@ def _parse_constrained_yaml(
 
 def _parse_frontmatter(skill_text: str, errors: list[str]) -> Optional[dict[str, Any]]:
     lines = skill_text.splitlines()
-    if not lines or lines[0].strip() != "---":
+    if not lines or lines[0] != "---":
         errors.append(f"{_display(SKILL)} must start with YAML frontmatter")
         return None
     try:
-        end = next(index for index, line in enumerate(lines[1:], 1) if line.strip() == "---")
+        end = next(index for index, line in enumerate(lines[1:], 1) if line == "---")
     except StopIteration:
         errors.append(f"{_display(SKILL)} has unterminated YAML frontmatter")
         return None
@@ -421,6 +465,58 @@ def _require_markers(
     for marker, label in markers:
         if marker not in content:
             errors.append(f"{_display(relative_path)} is missing {label}: {marker!r}")
+
+
+def _active_markdown(markdown: str) -> str:
+    """Return Markdown text outside fenced code blocks and HTML comments."""
+
+    active_lines: list[str] = []
+    in_comment = False
+    fence_character: Optional[str] = None
+    fence_length = 0
+
+    for original_line in markdown.splitlines():
+        line_parts: list[str] = []
+        cursor = 0
+        while cursor < len(original_line):
+            if in_comment:
+                comment_end = original_line.find("-->", cursor)
+                if comment_end < 0:
+                    cursor = len(original_line)
+                    break
+                in_comment = False
+                cursor = comment_end + 3
+                continue
+
+            comment_start = original_line.find("<!--", cursor)
+            if comment_start < 0:
+                line_parts.append(original_line[cursor:])
+                cursor = len(original_line)
+                break
+            line_parts.append(original_line[cursor:comment_start])
+            in_comment = True
+            cursor = comment_start + 4
+
+        line = "".join(line_parts)
+        if fence_character is not None:
+            closing_fence = re.fullmatch(
+                rf" {{0,3}}{re.escape(fence_character)}{{{fence_length},}}[ \t]*",
+                line,
+            )
+            if closing_fence is not None:
+                fence_character = None
+                fence_length = 0
+            continue
+
+        opening_fence = re.match(r"^ {0,3}(`{3,}|~{3,})(?:.*)$", line)
+        if opening_fence is not None:
+            marker = opening_fence.group(1)
+            fence_character = marker[0]
+            fence_length = len(marker)
+            continue
+        active_lines.append(line)
+
+    return "\n".join(active_lines)
 
 
 def _validate_skill_and_contracts(
@@ -508,11 +604,12 @@ def _validate_skill_and_contracts(
     )
 
     if skill_text is not None:
+        active_skill_text = _active_markdown(skill_text)
         for outcome in ("verified", "partially verified", "unverified"):
             definition = re.compile(
                 rf"^\s*-\s+`{re.escape(outcome)}`:\s+\S.*$", re.MULTILINE
             )
-            if definition.search(skill_text) is None:
+            if definition.search(active_skill_text) is None:
                 errors.append(
                     f"{_display(SKILL)} is missing standalone QA outcome definition "
                     f"for {outcome!r}"
@@ -610,33 +707,49 @@ def _validate_stale_names(
 ) -> None:
     plugin_root = repo_root / PLUGIN_ROOT
     if plugin_root.is_dir():
-        for path in sorted(plugin_root.rglob("*")):
-            if not path.is_file():
-                continue
-            relative_path = path.relative_to(repo_root)
+        def report_walk_error(exc: OSError) -> None:
+            failed_path = Path(exc.filename) if exc.filename else plugin_root
             try:
-                raw_content = path.read_bytes()
-            except OSError as exc:
-                errors.append(
-                    f"cannot inspect {_display(relative_path)} for stale names: {exc}"
-                )
-                continue
-            # A NUL byte is the sole binary exclusion. Every other regular file
-            # must be valid UTF-8 so an uninspected text-like asset cannot pass.
-            if b"\x00" in raw_content:
-                continue
-            try:
-                content = raw_content.decode("utf-8")
-            except UnicodeDecodeError as exc:
-                errors.append(
-                    f"cannot inspect {_display(relative_path)} for stale names: "
-                    f"not valid UTF-8 ({exc})"
-                )
-                continue
-            if _contains_stale_name(content):
-                errors.append(
-                    "stale public name/profile dependency in " f"{_display(relative_path)}"
-                )
+                displayed_path = failed_path.relative_to(repo_root)
+            except ValueError:
+                displayed_path = failed_path
+            errors.append(
+                f"cannot inspect directory {_display(displayed_path)} for stale names: {exc}"
+            )
+
+        for directory, directory_names, file_names in os.walk(
+            plugin_root, onerror=report_walk_error
+        ):
+            directory_names.sort()
+            for filename in sorted(file_names):
+                path = Path(directory) / filename
+                if not path.is_file():
+                    continue
+                relative_path = path.relative_to(repo_root)
+                try:
+                    raw_content = path.read_bytes()
+                except OSError as exc:
+                    errors.append(
+                        f"cannot inspect {_display(relative_path)} for stale names: {exc}"
+                    )
+                    continue
+                # A NUL byte is the sole binary exclusion. Every other regular file
+                # must be valid UTF-8 so an uninspected text-like asset cannot pass.
+                if b"\x00" in raw_content:
+                    continue
+                try:
+                    content = raw_content.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    errors.append(
+                        f"cannot inspect {_display(relative_path)} for stale names: "
+                        f"not valid UTF-8 ({exc})"
+                    )
+                    continue
+                if _contains_stale_name(content):
+                    errors.append(
+                        "stale public name/profile dependency in "
+                        f"{_display(relative_path)}"
+                    )
 
     for relative_path, entry in (
         (CODEX_MARKETPLACE, codex_entry),

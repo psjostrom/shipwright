@@ -167,6 +167,83 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.replace(skill, "name: shipwright", 'name: "shipwright"')
         self.assertEqual([], validate_bundle(self.repo_root))
 
+    def test_skill_frontmatter_delimiters_must_start_at_column_zero(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        mutations = {
+            "opening": "  " + original,
+            "closing": original.replace("\n---\n\n# Shipwright", "\n  ---\n\n# Shipwright", 1),
+        }
+        for label, content in mutations.items():
+            with self.subTest(delimiter=label):
+                self.path(skill).write_text(content, encoding="utf-8")
+                self.assert_error("frontmatter")
+        self.path(skill).write_text(original, encoding="utf-8")
+
+    def test_yaml_scalars_accept_inline_comments_trailing_space_and_boolean_case(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        self.replace(skill, "name: shipwright", "name: shipwright   # canonical skill name")
+        self.replace(
+            skill,
+            f"description: {validator.SKILL_DESCRIPTION}",
+            f"description: {validator.SKILL_DESCRIPTION}   # activation contract   ",
+        )
+
+        metadata = "plugins/shipwright/skills/shipwright/agents/openai.yaml"
+        self.replace(
+            metadata,
+            'display_name: "Shipwright"',
+            'display_name: "Shipwright"   # UI label   ',
+        )
+        self.replace(
+            metadata,
+            'short_description: "Strict end-to-end development workflow"',
+            "short_description: Strict end-to-end development workflow   # UI summary   ",
+        )
+        self.replace(
+            metadata,
+            "allow_implicit_invocation: false",
+            "allow_implicit_invocation: False   # explicit-only policy   ",
+        )
+        self.assertEqual([], validate_bundle(self.repo_root))
+
+    def test_yaml_comment_and_boolean_lexing_respects_scalar_boundaries(self) -> None:
+        cases = {
+            '"Ship # Wright"   # double-quoted label': '"Ship # Wright"',
+            "'Ship # Wright'   # single-quoted label": "'Ship # Wright'",
+            "Ship#Wright   # unquoted hash": "Ship#Wright",
+        }
+        for raw_value, expected in cases.items():
+            with self.subTest(raw_value=raw_value):
+                self.assertEqual(expected, validator._strip_yaml_inline_comment(raw_value))
+
+        for raw_value, expected in (
+            ("true", True),
+            ("True", True),
+            ("TRUE", True),
+            ("false", False),
+            ("False", False),
+            ("FALSE", False),
+        ):
+            with self.subTest(boolean=raw_value):
+                errors: list[str] = []
+                actual = validator._parse_yaml_scalar(
+                    raw_value + "   # boolean", Path("metadata.yaml"), 1, errors
+                )
+                self.assertEqual([], errors)
+                self.assertIs(expected, actual)
+
+        errors = []
+        self.assertIsNone(
+            validator._parse_yaml_scalar(
+                "'Ship'wright'   # malformed quote",
+                Path("metadata.yaml"),
+                1,
+                errors,
+            )
+        )
+        self.assertTrue(any("malformed single-quoted scalar" in error for error in errors))
+
     def test_skill_frontmatter_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
@@ -375,6 +452,30 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assert_error("QA outcome definition")
         self.path(skill).write_text(original, encoding="utf-8")
 
+    def test_qa_outcome_definitions_must_be_active_markdown(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        definitions = (
+            "- `verified`: every mandatory observation and artifact exists and the flow passed.\n",
+            "- `partially verified`: every core observation passed, but a named non-core planned observation was unavailable.\n",
+            "- `unverified`: the flow could not run, the interaction surface was unavailable, or core evidence is missing.\n",
+        )
+        wrappers = (
+            ("backtick fence", "```text\n{} ```\n"),
+            ("tilde fence", "~~~text\n{} ~~~\n"),
+            ("HTML comment", "<!--\n{}-->\n"),
+        )
+        for definition in definitions:
+            without_active = original.replace(definition, "", 1)
+            for label, wrapper in wrappers:
+                with self.subTest(outcome=definition.split(":", 1)[0], context=label):
+                    spoof = wrapper.format(definition)
+                    self.path(skill).write_text(
+                        without_active + "\n" + spoof, encoding="utf-8"
+                    )
+                    self.assert_error("QA outcome definition")
+        self.path(skill).write_text(original, encoding="utf-8")
+
     def test_reports_missing_authorization_boundaries(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
         for old, new in (
@@ -461,6 +562,47 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
         with mock.patch.object(Path, "read_bytes", autospec=True, side_effect=fail_selected):
             self.assert_error("cannot inspect plugins/shipwright/unreadable.asset")
+
+    def test_stale_scan_reports_unreadable_scoped_directory_when_permissions_apply(self) -> None:
+        blocked = self.path("plugins/shipwright/unreadable-directory")
+        blocked.mkdir()
+        (blocked / "legacy-command").write_text("$" + "full-dev\n", encoding="utf-8")
+        blocked.chmod(0)
+        try:
+            errors = validate_bundle(self.repo_root)
+        finally:
+            blocked.chmod(0o700)
+        expected_fragment = (
+            "cannot inspect directory plugins/shipwright/unreadable-directory"
+        )
+        if not any(expected_fragment in error for error in errors):
+            self.skipTest("runtime can enumerate mode-000 directories")
+        self.assertTrue(
+            any(expected_fragment in error for error in errors),
+            errors,
+        )
+
+    def test_stale_scan_reports_directory_enumeration_errors_through_walk_boundary(self) -> None:
+        failed = self.path("plugins/shipwright/unreadable-directory")
+
+        def fail_walk(top: Path, onerror: object = None) -> list[object]:
+            self.assertEqual(self.path("plugins/shipwright"), Path(top))
+            self.assertIsNotNone(onerror)
+            error = PermissionError(13, "simulated enumeration failure", str(failed))
+            onerror(error)  # type: ignore[operator]
+            return []
+
+        with mock.patch.object(validator.os, "walk", side_effect=fail_walk):
+            errors = validate_bundle(self.repo_root)
+        self.assertTrue(
+            any(
+                "cannot inspect directory plugins/shipwright/unreadable-directory"
+                in error
+                and "simulated enumeration failure" in error
+                for error in errors
+            ),
+            errors,
+        )
 
     def test_stale_scan_skips_only_nul_marked_binary_files(self) -> None:
         binary = self.path("plugins/shipwright/image.bin")
