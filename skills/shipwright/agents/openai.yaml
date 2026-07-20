@@ -1,0 +1,6 @@
+interface:
+  display_name: "Shipwright"
+  short_description: "Strict end-to-end development workflow"
+  default_prompt: "Use $shipwright:shipwright to build this feature end to end with independent review and real verification."
+policy:
+  allow_implicit_invocation: false

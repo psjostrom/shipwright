@@ -1,0 +1,33 @@
+{
+  "name": "shipwright",
+  "version": "1.0.0",
+  "description": "Strict end-to-end development with adaptive subagents, independent review, and real verification.",
+  "author": {
+    "name": "psjostrom",
+    "url": "https://github.com/psjostrom"
+  },
+  "repository": "https://github.com/psjostrom/agent-plugins",
+  "keywords": [
+    "development",
+    "subagents",
+    "code-review",
+    "verification",
+    "qa"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Shipwright",
+    "shortDescription": "Strict end-to-end development workflow",
+    "longDescription": "Build approved work through adaptive implementation, independent iterative review, fresh verification, and applicable browser, mobile, CLI, or backend QA.",
+    "developerName": "psjostrom",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use $shipwright:shipwright to build this feature end to end with independent review and real verification."
+    ]
+  }
+}

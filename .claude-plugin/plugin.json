@@ -1,0 +1,15 @@
+{
+  "name": "shipwright",
+  "version": "1.0.0",
+  "description": "Strict end-to-end development with adaptive subagents, independent review, and real verification.",
+  "author": {
+    "name": "psjostrom"
+  },
+  "keywords": [
+    "development",
+    "subagents",
+    "code-review",
+    "verification",
+    "qa"
+  ]
+}
