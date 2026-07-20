@@ -8,14 +8,20 @@ import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SCRIPT_DIR.parents[2]
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from validate_shipwright import validate_bundle  # noqa: E402
+import validate_shipwright as validator  # noqa: E402
+
+
+validate_bundle = validator.validate_bundle
 
 
 class ShipwrightValidatorTests(unittest.TestCase):
@@ -115,6 +121,39 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 manifest["name"] = "shipwright"
                 self.write_json(relative_path, manifest)
 
+    def test_manifest_versions_follow_platform_specific_contracts(self) -> None:
+        codex_path = "plugins/shipwright/.codex-plugin/plugin.json"
+        claude_path = "plugins/shipwright/.claude-plugin/plugin.json"
+
+        codex = self.read_json(codex_path)
+        codex["version"] = "1.0.0+codex.local-20260720-120000"
+        self.write_json(codex_path, codex)
+        self.assertEqual([], validate_bundle(self.repo_root))
+
+        for invalid in (
+            "1.0.1",
+            "1.0.0-dev",
+            "1.0.0+other.token",
+            "1.0.0+codex.UPPER",
+            "1.0.0+codex.double--dash",
+            "1.0.0+codex.-leading",
+        ):
+            with self.subTest(platform="codex", version=invalid):
+                codex["version"] = invalid
+                self.write_json(codex_path, codex)
+                errors = self.assert_error(codex_path)
+                self.assertTrue(any("version" in error for error in errors), errors)
+
+        codex["version"] = "1.0.0"
+        self.write_json(codex_path, codex)
+        claude = self.read_json(claude_path)
+        for invalid in ("1.0.1", "1.0.0-dev", "1.0.0+codex.local-1"):
+            with self.subTest(platform="claude", version=invalid):
+                claude["version"] = invalid
+                self.write_json(claude_path, claude)
+                errors = self.assert_error(claude_path)
+                self.assertTrue(any("version" in error for error in errors), errors)
+
     def test_reports_wrong_skill_frontmatter_name(self) -> None:
         self.replace(
             "plugins/shipwright/skills/shipwright/SKILL.md",
@@ -122,6 +161,33 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "name: wrong-name",
         )
         self.assert_error("frontmatter name")
+
+    def test_skill_frontmatter_accepts_supported_quotes(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        self.replace(skill, "name: shipwright", 'name: "shipwright"')
+        self.assertEqual([], validate_bundle(self.repo_root))
+
+    def test_skill_frontmatter_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        mutations = {
+            "commented": original.replace("name: shipwright", "# name: shipwright", 1),
+            "malformed quote": original.replace("name: shipwright", 'name: "shipwright', 1),
+            "wrong nesting": original.replace(
+                "name: shipwright", "metadata:\n  name: shipwright", 1
+            ),
+            "duplicate": original.replace(
+                "name: shipwright", "name: shipwright\nname: duplicate", 1
+            ),
+            "extra": original.replace(
+                "name: shipwright", "name: shipwright\nextra: metadata", 1
+            ),
+        }
+        for label, content in mutations.items():
+            with self.subTest(case=label):
+                self.path(skill).write_text(content, encoding="utf-8")
+                self.assert_error(skill)
+        self.path(skill).write_text(original, encoding="utf-8")
 
     def test_reports_wrong_codex_skills_path(self) -> None:
         path = "plugins/shipwright/.codex-plugin/plugin.json"
@@ -152,6 +218,56 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "allow_implicit_invocation: true",
         )
         self.assert_error("allow_implicit_invocation")
+
+    def test_openai_metadata_accepts_supported_unquoted_scalars(self) -> None:
+        metadata = "plugins/shipwright/skills/shipwright/agents/openai.yaml"
+        content = self.path(metadata).read_text(encoding="utf-8")
+        content = content.replace('display_name: "Shipwright"', "display_name: Shipwright")
+        content = content.replace(
+            'short_description: "Strict end-to-end development workflow"',
+            "short_description: Strict end-to-end development workflow",
+        )
+        content = content.replace(
+            f'default_prompt: "{validator.DEFAULT_PROMPT}"',
+            f"default_prompt: {validator.DEFAULT_PROMPT}",
+        )
+        self.path(metadata).write_text(content, encoding="utf-8")
+        self.assertEqual([], validate_bundle(self.repo_root))
+
+    def test_openai_metadata_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
+        metadata = "plugins/shipwright/skills/shipwright/agents/openai.yaml"
+        original = self.path(metadata).read_text(encoding="utf-8")
+        mutations = {
+            "commented": "\n".join(
+                f"# {line}" if line.strip() else line for line in original.splitlines()
+            )
+            + "\n",
+            "malformed quote": original.replace(
+                'display_name: "Shipwright"', 'display_name: "Shipwright', 1
+            ),
+            "missing": original.replace('  display_name: "Shipwright"\n', "", 1),
+            "wrong nesting": original.replace(
+                "policy:\n  allow_implicit_invocation: false",
+                "  allow_implicit_invocation: false",
+                1,
+            ),
+            "duplicate": original.replace(
+                '  display_name: "Shipwright"',
+                '  display_name: "Shipwright"\n  display_name: "Duplicate"',
+                1,
+            ),
+            "quoted boolean": original.replace(
+                "allow_implicit_invocation: false",
+                'allow_implicit_invocation: "false"',
+                1,
+            ),
+            "extra": original + "extra: metadata\n",
+        }
+        for label, content in mutations.items():
+            with self.subTest(case=label):
+                self.path(metadata).write_text(content, encoding="utf-8")
+                self.assert_error(metadata)
+        self.path(metadata).write_text(original, encoding="utf-8")
 
     def test_reports_wrong_marketplace_paths_and_codex_policies(self) -> None:
         codex_path = ".agents/plugins/marketplace.json"
@@ -242,6 +358,23 @@ class ShipwrightValidatorTests(unittest.TestCase):
         ):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
+    def test_reports_each_missing_standalone_qa_outcome_definition(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        definitions = (
+            "- `verified`: every mandatory observation and artifact exists and the flow passed.\n",
+            "- `partially verified`: every core observation passed, but a named non-core planned observation was unavailable.\n",
+            "- `unverified`: the flow could not run, the interaction surface was unavailable, or core evidence is missing.\n",
+        )
+        for definition in definitions:
+            with self.subTest(definition=definition.split(":", 1)[0]):
+                self.assertIn(definition, original)
+                self.path(skill).write_text(
+                    original.replace(definition, "", 1), encoding="utf-8"
+                )
+                self.assert_error("QA outcome definition")
+        self.path(skill).write_text(original, encoding="utf-8")
+
     def test_reports_missing_authorization_boundaries(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
         for old, new in (
@@ -265,6 +398,74 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 path.write_text(original + f"\n{stale}\n", encoding="utf-8")
                 self.assert_error("stale public name/profile dependency")
                 path.write_text(original, encoding="utf-8")
+
+    def test_stale_scan_covers_all_scoped_surfaces_and_legacy_forms(self) -> None:
+        stale_forms = ("$" + "full-dev", "/" + "full-dev", "full-dev" + "-worker")
+
+        plugin_paths = (
+            "plugins/shipwright/legacy-profile.toml",
+            "plugins/shipwright/legacy-command",
+        )
+        for relative_path in plugin_paths:
+            for stale in stale_forms:
+                with self.subTest(surface=relative_path, stale=stale):
+                    path = self.path(relative_path)
+                    path.write_text(stale + "\n", encoding="utf-8")
+                    self.assert_error(relative_path)
+                    path.unlink()
+
+        for relative_path in (
+            ".agents/plugins/marketplace.json",
+            ".claude-plugin/marketplace.json",
+        ):
+            original = self.read_json(relative_path)
+            for stale in stale_forms:
+                with self.subTest(surface=relative_path, stale=stale):
+                    catalog = json.loads(json.dumps(original))
+                    entry = next(
+                        item for item in catalog["plugins"] if item["name"] == "shipwright"
+                    )
+                    entry["legacy_probe"] = stale
+                    self.write_json(relative_path, catalog)
+                    self.assert_error(relative_path)
+            self.write_json(relative_path, original)
+
+        readme = "README.md"
+        original_readme = self.path(readme).read_text(encoding="utf-8")
+        bullet = next(
+            line for line in original_readme.splitlines() if line.startswith("- `shipwright`")
+        )
+        for stale in stale_forms:
+            with self.subTest(surface=readme, stale=stale):
+                self.path(readme).write_text(
+                    original_readme.replace(bullet, f"{bullet} {stale}", 1),
+                    encoding="utf-8",
+                )
+                self.assert_error(readme)
+        self.path(readme).write_text(original_readme, encoding="utf-8")
+
+    def test_stale_scan_reports_undecodable_and_unreadable_scoped_files(self) -> None:
+        undecodable = self.path("plugins/shipwright/undecodable.asset")
+        undecodable.write_bytes(b"\xff\xfe\xfd")
+        self.assert_error("cannot inspect plugins/shipwright/undecodable.asset")
+        undecodable.unlink()
+
+        unreadable = self.path("plugins/shipwright/unreadable.asset")
+        unreadable.write_text("ordinary text\n", encoding="utf-8")
+        original_read_bytes = Path.read_bytes
+
+        def fail_selected(path: Path) -> bytes:
+            if path == unreadable:
+                raise OSError("simulated read failure")
+            return original_read_bytes(path)
+
+        with mock.patch.object(Path, "read_bytes", autospec=True, side_effect=fail_selected):
+            self.assert_error("cannot inspect plugins/shipwright/unreadable.asset")
+
+    def test_stale_scan_skips_only_nul_marked_binary_files(self) -> None:
+        binary = self.path("plugins/shipwright/image.bin")
+        binary.write_bytes(b"\x00$" + b"full-dev")
+        self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_stale_scan_ignores_historical_documents_outside_scope(self) -> None:
         historical = self.path("docs/history.md")
@@ -317,6 +518,62 @@ class ShipwrightValidatorTests(unittest.TestCase):
         errors = validate_bundle(self.repo_root)
         self.assertTrue(any(".codex-plugin/plugin.json" in error for error in errors), errors)
         self.assertTrue(any("Claude controller gate" in error for error in errors), errors)
+
+    def test_field_and_version_diagnostics_include_their_source_paths(self) -> None:
+        codex_path = "plugins/shipwright/.codex-plugin/plugin.json"
+        claude_path = "plugins/shipwright/.claude-plugin/plugin.json"
+        codex_marketplace_path = ".agents/plugins/marketplace.json"
+        claude_marketplace_path = ".claude-plugin/marketplace.json"
+
+        codex = self.read_json(codex_path)
+        codex["repository"] = "wrong"
+        self.write_json(codex_path, codex)
+        claude = self.read_json(claude_path)
+        claude["version"] = "1.0.1"
+        self.write_json(claude_path, claude)
+        codex_catalog = self.read_json(codex_marketplace_path)
+        next(
+            item for item in codex_catalog["plugins"] if item["name"] == "shipwright"
+        )["category"] = "Wrong"
+        self.write_json(codex_marketplace_path, codex_catalog)
+        claude_catalog = self.read_json(claude_marketplace_path)
+        next(
+            item for item in claude_catalog["plugins"] if item["name"] == "shipwright"
+        )["source"] = "wrong"
+        self.write_json(claude_marketplace_path, claude_catalog)
+
+        errors = validate_bundle(self.repo_root)
+        for relative_path, field in (
+            (codex_path, "repository"),
+            (claude_path, "version"),
+            (codex_marketplace_path, "category"),
+            (claude_marketplace_path, "source"),
+        ):
+            self.assertTrue(
+                any(relative_path in error and field in error for error in errors), errors
+            )
+
+    def test_main_success_contract(self) -> None:
+        stdout = StringIO()
+        with mock.patch.object(validator, "_repository_root", return_value=self.repo_root):
+            with redirect_stdout(stdout):
+                status = validator.main()
+        self.assertEqual(0, status)
+        self.assertEqual("Shipwright validation passed.\n", stdout.getvalue())
+
+    def test_main_failure_contract(self) -> None:
+        missing = "plugins/shipwright/.codex-plugin/plugin.json"
+        self.path(missing).unlink()
+        stdout = StringIO()
+        with mock.patch.object(validator, "_repository_root", return_value=self.repo_root):
+            with redirect_stdout(stdout):
+                status = validator.main()
+        self.assertEqual(1, status)
+        self.assertEqual(
+            "Shipwright validation failed:\n"
+            f"- missing required JSON file: {missing}\n",
+            stdout.getvalue(),
+        )
 
 
 if __name__ == "__main__":

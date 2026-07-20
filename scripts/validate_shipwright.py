@@ -25,6 +25,12 @@ DESCRIPTION = (
     "Strict end-to-end development with adaptive subagents, independent review, "
     "and real verification."
 )
+SKILL_DESCRIPTION = (
+    "Use when the user explicitly requests Shipwright, full end-to-end development, "
+    "autonomous implementation with subagents, or implementation plus independent "
+    "iterative review and real verification; do not use for factual questions, "
+    "read-only review, diagnosis without a requested fix, or tiny mechanical edits."
+)
 KEYWORDS = ["development", "subagents", "code-review", "verification", "qa"]
 CODEX_INVOCATION = "$shipwright:shipwright"
 CLAUDE_INVOCATION = "/shipwright:shipwright"
@@ -98,29 +104,42 @@ def _require_equal(
     keys: tuple[str, ...],
     expected: Any,
     label: str,
+    source_path: Path,
     errors: list[str],
 ) -> None:
     actual = _value_at(data, *keys)
     if actual != expected:
-        errors.append(f"{label} must be {expected!r}; found {actual!r}")
+        errors.append(
+            f"{_display(source_path)}: {label} must be {expected!r}; found {actual!r}"
+        )
 
 
-def _valid_version(value: Any) -> bool:
-    return isinstance(value, str) and re.fullmatch(r"1\.0\.0(?:[-+][0-9A-Za-z.-]+)?", value) is not None
+def _valid_codex_version(value: Any) -> bool:
+    """Match the cachebuster form emitted by update_plugin_cachebuster.py."""
+
+    return (
+        isinstance(value, str)
+        and re.fullmatch(r"1\.0\.0(?:\+codex\.[a-z0-9]+(?:-[a-z0-9]+)*)?", value)
+        is not None
+    )
 
 
 def _validate_manifests(codex: Any, claude: Any, errors: list[str]) -> None:
     if isinstance(codex, dict):
-        _require_equal(codex, ("name",), "shipwright", "Codex manifest name", errors)
-        if not _valid_version(codex.get("version")):
-            errors.append("Codex manifest version must start at 1.0.0")
-        _require_equal(codex, ("description",), DESCRIPTION, "Codex manifest description", errors)
-        _require_equal(codex, ("author", "name"), "psjostrom", "Codex manifest author.name", errors)
+        _require_equal(codex, ("name",), "shipwright", "Codex manifest name", CODEX_MANIFEST, errors)
+        if not _valid_codex_version(codex.get("version")):
+            errors.append(
+                f"{_display(CODEX_MANIFEST)}: Codex manifest version must be '1.0.0' "
+                "or '1.0.0+codex.<cachebuster>'"
+            )
+        _require_equal(codex, ("description",), DESCRIPTION, "Codex manifest description", CODEX_MANIFEST, errors)
+        _require_equal(codex, ("author", "name"), "psjostrom", "Codex manifest author.name", CODEX_MANIFEST, errors)
         _require_equal(
             codex,
             ("author", "url"),
             "https://github.com/psjostrom",
             "Codex manifest author.url",
+            CODEX_MANIFEST,
             errors,
         )
         _require_equal(
@@ -128,10 +147,11 @@ def _validate_manifests(codex: Any, claude: Any, errors: list[str]) -> None:
             ("repository",),
             "https://github.com/psjostrom/agent-plugins",
             "Codex manifest repository",
+            CODEX_MANIFEST,
             errors,
         )
-        _require_equal(codex, ("keywords",), KEYWORDS, "Codex manifest keywords", errors)
-        _require_equal(codex, ("skills",), "./skills/", "Codex manifest skills path", errors)
+        _require_equal(codex, ("keywords",), KEYWORDS, "Codex manifest keywords", CODEX_MANIFEST, errors)
+        _require_equal(codex, ("skills",), "./skills/", "Codex manifest skills path", CODEX_MANIFEST, errors)
 
         interface_expectations = {
             "displayName": "Shipwright",
@@ -152,26 +172,34 @@ def _validate_manifests(codex: Any, claude: Any, errors: list[str]) -> None:
                 ("interface", key),
                 expected,
                 f"Codex interface {key}",
+                CODEX_MANIFEST,
                 errors,
             )
     elif codex is not None:
-        errors.append("Codex manifest root must be a JSON object")
+        errors.append(f"{_display(CODEX_MANIFEST)}: Codex manifest root must be a JSON object")
 
     if isinstance(claude, dict):
-        _require_equal(claude, ("name",), "shipwright", "Claude manifest name", errors)
-        if not _valid_version(claude.get("version")):
-            errors.append("Claude manifest version must start at 1.0.0")
-        _require_equal(claude, ("description",), DESCRIPTION, "Claude manifest description", errors)
-        _require_equal(claude, ("author", "name"), "psjostrom", "Claude manifest author.name", errors)
-        _require_equal(claude, ("keywords",), KEYWORDS, "Claude manifest keywords", errors)
+        _require_equal(claude, ("name",), "shipwright", "Claude manifest name", CLAUDE_MANIFEST, errors)
+        if claude.get("version") != "1.0.0":
+            errors.append(
+                f"{_display(CLAUDE_MANIFEST)}: Claude manifest version must be exactly '1.0.0'; "
+                f"found {claude.get('version')!r}"
+            )
+        _require_equal(claude, ("description",), DESCRIPTION, "Claude manifest description", CLAUDE_MANIFEST, errors)
+        _require_equal(claude, ("author", "name"), "psjostrom", "Claude manifest author.name", CLAUDE_MANIFEST, errors)
+        _require_equal(claude, ("keywords",), KEYWORDS, "Claude manifest keywords", CLAUDE_MANIFEST, errors)
     elif claude is not None:
-        errors.append("Claude manifest root must be a JSON object")
+        errors.append(f"{_display(CLAUDE_MANIFEST)}: Claude manifest root must be a JSON object")
 
 
-def _marketplace_entry(catalog: Any, label: str, errors: list[str]) -> Optional[dict[str, Any]]:
+def _marketplace_entry(
+    catalog: Any, label: str, source_path: Path, errors: list[str]
+) -> Optional[dict[str, Any]]:
     if not isinstance(catalog, dict) or not isinstance(catalog.get("plugins"), list):
         if catalog is not None:
-            errors.append(f"{label} marketplace must contain a plugins list")
+            errors.append(
+                f"{_display(source_path)}: {label} marketplace must contain a plugins list"
+            )
         return None
     matches = [
         item
@@ -179,7 +207,10 @@ def _marketplace_entry(catalog: Any, label: str, errors: list[str]) -> Optional[
         if isinstance(item, dict) and item.get("name") == "shipwright"
     ]
     if len(matches) != 1:
-        errors.append(f"{label} marketplace must contain exactly one shipwright entry")
+        errors.append(
+            f"{_display(source_path)}: {label} marketplace must contain exactly one "
+            "shipwright entry"
+        )
         return None
     return matches[0]
 
@@ -187,16 +218,17 @@ def _marketplace_entry(catalog: Any, label: str, errors: list[str]) -> Optional[
 def _validate_marketplaces(
     codex_catalog: Any, claude_catalog: Any, errors: list[str]
 ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
-    codex = _marketplace_entry(codex_catalog, "Codex", errors)
-    claude = _marketplace_entry(claude_catalog, "Claude", errors)
+    codex = _marketplace_entry(codex_catalog, "Codex", CODEX_MARKETPLACE, errors)
+    claude = _marketplace_entry(claude_catalog, "Claude", CLAUDE_MARKETPLACE, errors)
     if codex is not None:
-        _require_equal(codex, ("name",), "shipwright", "Codex marketplace name", errors)
-        _require_equal(codex, ("source", "source"), "local", "Codex marketplace source.source", errors)
+        _require_equal(codex, ("name",), "shipwright", "Codex marketplace name", CODEX_MARKETPLACE, errors)
+        _require_equal(codex, ("source", "source"), "local", "Codex marketplace source.source", CODEX_MARKETPLACE, errors)
         _require_equal(
             codex,
             ("source", "path"),
             "./plugins/shipwright",
             "Codex marketplace source.path",
+            CODEX_MARKETPLACE,
             errors,
         )
         _require_equal(
@@ -204,6 +236,7 @@ def _validate_marketplaces(
             ("policy", "installation"),
             "AVAILABLE",
             "Codex marketplace policy.installation",
+            CODEX_MARKETPLACE,
             errors,
         )
         _require_equal(
@@ -211,9 +244,10 @@ def _validate_marketplaces(
             ("policy", "authentication"),
             "ON_INSTALL",
             "Codex marketplace policy.authentication",
+            CODEX_MARKETPLACE,
             errors,
         )
-        _require_equal(codex, ("category",), "Developer Tools", "Codex marketplace category", errors)
+        _require_equal(codex, ("category",), "Developer Tools", "Codex marketplace category", CODEX_MARKETPLACE, errors)
     if claude is not None:
         expectations = {
             "name": "shipwright",
@@ -224,18 +258,145 @@ def _validate_marketplaces(
             "category": "development",
         }
         for key, expected in expectations.items():
-            _require_equal(claude, (key,), expected, f"Claude marketplace {key}", errors)
+            _require_equal(
+                claude,
+                (key,),
+                expected,
+                f"Claude marketplace {key}",
+                CLAUDE_MARKETPLACE,
+                errors,
+            )
         _require_equal(
             claude,
             ("author", "name"),
             "psjostrom",
             "Claude marketplace author.name",
+            CLAUDE_MARKETPLACE,
             errors,
         )
     return codex, claude
 
 
-def _parse_frontmatter(skill_text: str, errors: list[str]) -> Optional[dict[str, str]]:
+def _parse_yaml_scalar(
+    raw_value: str, relative_path: Path, line_number: int, errors: list[str]
+) -> Any:
+    if raw_value.startswith('"'):
+        try:
+            value = json.loads(raw_value)
+        except json.JSONDecodeError as exc:
+            errors.append(
+                f"{_display(relative_path)}:{line_number}: malformed double-quoted scalar: {exc.msg}"
+            )
+            return None
+        if not isinstance(value, str):
+            errors.append(
+                f"{_display(relative_path)}:{line_number}: quoted scalar must be a string"
+            )
+            return None
+        return value
+    if raw_value.startswith("'"):
+        if len(raw_value) < 2 or not raw_value.endswith("'"):
+            errors.append(
+                f"{_display(relative_path)}:{line_number}: malformed single-quoted scalar"
+            )
+            return None
+        return raw_value[1:-1].replace("''", "'")
+    if raw_value.endswith(("'", '"')):
+        errors.append(f"{_display(relative_path)}:{line_number}: malformed quoted scalar")
+        return None
+    if raw_value == "true":
+        return True
+    if raw_value == "false":
+        return False
+    return raw_value
+
+
+def _parse_constrained_yaml(
+    yaml_text: str, relative_path: Path, errors: list[str]
+) -> dict[str, Any]:
+    """Parse the mapping-only YAML subset used by Shipwright metadata files."""
+
+    entries: list[tuple[int, int, str, str]] = []
+    for line_number, line in enumerate(yaml_text.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        leading = line[: len(line) - len(line.lstrip(" "))]
+        if "\t" in line[: len(line) - len(line.lstrip())]:
+            errors.append(
+                f"{_display(relative_path)}:{line_number}: tabs are unsupported in YAML indentation"
+            )
+            continue
+        indentation = len(leading)
+        if indentation % 2:
+            errors.append(
+                f"{_display(relative_path)}:{line_number}: YAML indentation must use two-space levels"
+            )
+            continue
+        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):(?:[ ]*(.*))?", line[indentation:])
+        if match is None:
+            errors.append(
+                f"{_display(relative_path)}:{line_number}: unsupported YAML mapping line: {line!r}"
+            )
+            continue
+        entries.append((line_number, indentation, match.group(1), match.group(2) or ""))
+
+    index = 0
+
+    def parse_block(indentation: int) -> dict[str, Any]:
+        nonlocal index
+        result: dict[str, Any] = {}
+        while index < len(entries):
+            line_number, current_indent, key, raw_value = entries[index]
+            if current_indent < indentation:
+                break
+            if current_indent > indentation:
+                errors.append(
+                    f"{_display(relative_path)}:{line_number}: unexpected YAML indentation"
+                )
+                index += 1
+                continue
+
+            index += 1
+            duplicate = key in result
+            if duplicate:
+                errors.append(
+                    f"{_display(relative_path)}:{line_number}: duplicate YAML key {key!r}"
+                )
+
+            if raw_value:
+                value = _parse_yaml_scalar(raw_value, relative_path, line_number, errors)
+                if index < len(entries) and entries[index][1] > indentation:
+                    nested_line = entries[index][0]
+                    errors.append(
+                        f"{_display(relative_path)}:{nested_line}: scalar key {key!r} "
+                        "cannot contain nested keys"
+                    )
+                    parse_block(entries[index][1])
+            elif index < len(entries) and entries[index][1] > indentation:
+                child_indent = entries[index][1]
+                if child_indent != indentation + 2:
+                    errors.append(
+                        f"{_display(relative_path)}:{entries[index][0]}: nested YAML keys "
+                        "must indent exactly two spaces"
+                    )
+                value = parse_block(child_indent)
+            else:
+                value = {}
+
+            if not duplicate:
+                result[key] = value
+        return result
+
+    if not entries:
+        return {}
+    if entries[0][1] != 0:
+        errors.append(
+            f"{_display(relative_path)}:{entries[0][0]}: top-level YAML key must not be indented"
+        )
+    return parse_block(entries[0][1])
+
+
+def _parse_frontmatter(skill_text: str, errors: list[str]) -> Optional[dict[str, Any]]:
     lines = skill_text.splitlines()
     if not lines or lines[0].strip() != "---":
         errors.append(f"{_display(SKILL)} must start with YAML frontmatter")
@@ -246,16 +407,7 @@ def _parse_frontmatter(skill_text: str, errors: list[str]) -> Optional[dict[str,
         errors.append(f"{_display(SKILL)} has unterminated YAML frontmatter")
         return None
 
-    frontmatter: dict[str, str] = {}
-    for line in lines[1:end]:
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)", line)
-        if match is None:
-            errors.append(f"{_display(SKILL)} has unsupported frontmatter line: {line!r}")
-            continue
-        frontmatter[match.group(1)] = match.group(2).strip().strip("'\"")
-    return frontmatter
+    return _parse_constrained_yaml("\n".join(lines[1:end]), SKILL, errors)
 
 
 def _require_markers(
@@ -294,12 +446,31 @@ def _validate_skill_and_contracts(
     if skill_text is not None:
         frontmatter = _parse_frontmatter(skill_text, errors)
         if frontmatter is not None:
-            if frontmatter.get("name") != "shipwright":
-                errors.append("Shipwright SKILL.md frontmatter name must be 'shipwright'")
-            if not frontmatter.get("description"):
-                errors.append("Shipwright SKILL.md frontmatter description must be nonempty")
+            _require_equal(
+                frontmatter,
+                ("name",),
+                "shipwright",
+                "Shipwright SKILL.md frontmatter name",
+                SKILL,
+                errors,
+            )
+            _require_equal(
+                frontmatter,
+                ("description",),
+                SKILL_DESCRIPTION,
+                "Shipwright SKILL.md frontmatter description",
+                SKILL,
+                errors,
+            )
+            if set(frontmatter) != {"name", "description"}:
+                errors.append(
+                    f"{_display(SKILL)}: Shipwright SKILL.md frontmatter keys must be "
+                    f"exactly ['description', 'name']; found {sorted(frontmatter)!r}"
+                )
         if len(skill_text.splitlines()) >= 500:
-            errors.append("Shipwright shared SKILL.md must be fewer than 500 lines")
+            errors.append(
+                f"{_display(SKILL)}: Shipwright shared SKILL.md must be fewer than 500 lines"
+            )
 
     _require_markers(
         skill_text,
@@ -320,9 +491,6 @@ def _validate_skill_and_contracts(
             ("agent-browser", "agent-browser web QA route"),
             ("Playwright", "Playwright web regression route"),
             ("argent", "Argent mobile QA route"),
-            ("verified", "verified QA outcome"),
-            ("partially verified", "partially verified QA outcome"),
-            ("unverified", "unverified QA outcome"),
             ("BLOCKED_QA", "BLOCKED_QA terminal state"),
             ("Install/download tools", "authorization boundary for tool installation"),
             ("paid quota", "authorization boundary for paid quota"),
@@ -338,6 +506,17 @@ def _validate_skill_and_contracts(
         SKILL,
         errors,
     )
+
+    if skill_text is not None:
+        for outcome in ("verified", "partially verified", "unverified"):
+            definition = re.compile(
+                rf"^\s*-\s+`{re.escape(outcome)}`:\s+\S.*$", re.MULTILINE
+            )
+            if definition.search(skill_text) is None:
+                errors.append(
+                    f"{_display(SKILL)} is missing standalone QA outcome definition "
+                    f"for {outcome!r}"
+                )
 
     _require_markers(
         codex_text,
@@ -370,20 +549,38 @@ def _validate_skill_and_contracts(
 
 
 def _validate_openai_metadata(metadata_text: Optional[str], errors: list[str]) -> None:
-    _require_markers(
-        metadata_text,
+    if metadata_text is None:
+        return
+    metadata = _parse_constrained_yaml(metadata_text, OPENAI_METADATA, errors)
+    expected_metadata = {
+        "interface": {
+            "display_name": "Shipwright",
+            "short_description": "Strict end-to-end development workflow",
+            "default_prompt": DEFAULT_PROMPT,
+        },
+        "policy": {"allow_implicit_invocation": False},
+    }
+    if metadata != expected_metadata:
+        errors.append(
+            f"{_display(OPENAI_METADATA)}: openai metadata must equal "
+            f"{expected_metadata!r}; found {metadata!r}"
+        )
+    expectations = (
+        (("interface", "display_name"), "Shipwright", "openai display_name"),
         (
-            ('display_name: "Shipwright"', "openai display_name"),
-            (
-                'short_description: "Strict end-to-end development workflow"',
-                "openai short_description",
-            ),
-            (f'default_prompt: "{DEFAULT_PROMPT}"', "openai default_prompt"),
-            ("allow_implicit_invocation: false", "openai allow_implicit_invocation policy"),
+            ("interface", "short_description"),
+            "Strict end-to-end development workflow",
+            "openai short_description",
         ),
-        OPENAI_METADATA,
-        errors,
+        (("interface", "default_prompt"), DEFAULT_PROMPT, "openai default_prompt"),
+        (
+            ("policy", "allow_implicit_invocation"),
+            False,
+            "openai allow_implicit_invocation policy",
+        ),
     )
+    for keys, expected, label in expectations:
+        _require_equal(metadata, keys, expected, label, OPENAI_METADATA, errors)
 
 
 def _validate_readme(readme_text: Optional[str], errors: list[str]) -> list[str]:
@@ -391,9 +588,11 @@ def _validate_readme(readme_text: Optional[str], errors: list[str]) -> list[str]
         return []
     bullets = [line for line in readme_text.splitlines() if line.startswith("- `shipwright`")]
     if len(bullets) != 1:
-        errors.append("README.md must contain exactly one Shipwright plugin bullet")
+        errors.append(f"{_display(README)}: must contain exactly one Shipwright plugin bullet")
     elif CODEX_INVOCATION not in bullets[0] or CLAUDE_INVOCATION not in bullets[0]:
-        errors.append("Shipwright README bullet must document Codex invocation and Claude invocation")
+        errors.append(
+            f"{_display(README)}: Shipwright bullet must document Codex and Claude invocations"
+        )
     return bullets
 
 
@@ -412,23 +611,46 @@ def _validate_stale_names(
     plugin_root = repo_root / PLUGIN_ROOT
     if plugin_root.is_dir():
         for path in sorted(plugin_root.rglob("*")):
-            if not path.is_file() or path.suffix not in {".md", ".json", ".yaml", ".yml", ".py"}:
+            if not path.is_file():
+                continue
+            relative_path = path.relative_to(repo_root)
+            try:
+                raw_content = path.read_bytes()
+            except OSError as exc:
+                errors.append(
+                    f"cannot inspect {_display(relative_path)} for stale names: {exc}"
+                )
+                continue
+            # A NUL byte is the sole binary exclusion. Every other regular file
+            # must be valid UTF-8 so an uninspected text-like asset cannot pass.
+            if b"\x00" in raw_content:
                 continue
             try:
-                content = path.read_text(encoding="utf-8")
-            except (OSError, UnicodeError):
+                content = raw_content.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                errors.append(
+                    f"cannot inspect {_display(relative_path)} for stale names: "
+                    f"not valid UTF-8 ({exc})"
+                )
                 continue
             if _contains_stale_name(content):
-                relative_path = path.relative_to(repo_root)
                 errors.append(
                     "stale public name/profile dependency in " f"{_display(relative_path)}"
                 )
 
-    for label, entry in (("Codex marketplace entry", codex_entry), ("Claude marketplace entry", claude_entry)):
+    for relative_path, entry in (
+        (CODEX_MARKETPLACE, codex_entry),
+        (CLAUDE_MARKETPLACE, claude_entry),
+    ):
         if entry is not None and _contains_stale_name(json.dumps(entry, sort_keys=True)):
-            errors.append(f"stale public name/profile dependency in {label}")
+            errors.append(
+                f"stale public name/profile dependency in {_display(relative_path)} "
+                "Shipwright marketplace entry"
+            )
     if any(_contains_stale_name(line) for line in readme_bullets):
-        errors.append("stale public name/profile dependency in Shipwright README bullet")
+        errors.append(
+            f"stale public name/profile dependency in {_display(README)} Shipwright bullet"
+        )
 
 
 def validate_bundle(repo_root: Path) -> list[str]:
@@ -468,9 +690,12 @@ def validate_bundle(repo_root: Path) -> list[str]:
     return errors
 
 
+def _repository_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
 def main() -> int:
-    repo_root = Path(__file__).resolve().parents[3]
-    errors = validate_bundle(repo_root)
+    errors = validate_bundle(_repository_root())
     if errors:
         print("Shipwright validation failed:")
         for error in errors:
