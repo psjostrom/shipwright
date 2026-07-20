@@ -55,22 +55,29 @@ A child meets a requested tier only when **both** specified dimensions meet thei
 
 ## Native dispatch and fallback
 
-Use Claude Code's Task/Agent subagent operation when exposed. Inspect the live schema and pass explicit `model` and effort/reasoning fields only when those fields exist. Conceptually:
+Use Claude Code's Task/Agent subagent operation when exposed. Inspect the live schema and pass the route's explicit `model` whenever a usable model selector exists. Pass an effort/reasoning request only when that selector exists and the route specifies an effort floor. Conceptually:
 
 ```text
 Task/Agent({ subagent_type, prompt, model, effort })
 ```
 
-The exact operation and field names come from the live tool schema; never fabricate unsupported arguments. Record requested model and effort before dispatch.
+The exact operation and field names come from the live tool schema; never fabricate unsupported arguments. Record the requested model and any requested effort before dispatch, then validate the child's actual current-turn model and effort evidence.
 
-If Task/Agent does not expose both required selectors:
+When a usable model selector exists but no effort selector exists:
+
+1. Dispatch the explicitly selected route model without an effort field.
+2. For the Haiku mechanical route, accept attributable Haiku-or-stronger evidence with absent effort because that route has no effort floor; a nonempty unknown effort remains unverified.
+3. For Sonnet and Opus routes, require the actual current-turn effort evidence to meet the route floor. Weaker, absent, unknown, conflicting, or unattributable effort rejects the gated result through the shared child-evidence transition and permits exactly one fresh inherited-controller fallback.
+4. Accept that fallback only when its attributable model and effort meet the task minimum; otherwise enter `BLOCKED_RUNTIME`.
+
+Use selector-absence fallback only when Task/Agent exposes no usable model selector, whether or not it exposes an effort selector:
 
 1. Verify the controller passed the Opus 4.7/xhigh gate.
 2. Dispatch one fresh inherited child with task-local context.
 3. Require child current-turn evidence.
 4. Record `inherited correctness-first fallback` and the actual evidence.
 
-An inherited Opus child is correctness-first over-provisioning, not Haiku/Sonnet execution and not adaptive cost routing. Never claim the requested cheaper tier ran.
+The same inherited-controller fallback is available once when an explicit dispatch is rejected by the shared child-evidence transition. An inherited Opus child is correctness-first over-provisioning, not Haiku/Sonnet execution and not adaptive cost routing. Never claim the requested cheaper tier ran.
 
 ## Child evidence
 
