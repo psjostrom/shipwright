@@ -407,6 +407,7 @@ def _parse_constrained_yaml(
                     f"{_display(relative_path)}:{line_number}: duplicate YAML key {key!r}"
                 )
 
+            raw_value = _strip_yaml_inline_comment(raw_value).rstrip()
             if raw_value:
                 value = _parse_yaml_scalar(raw_value, relative_path, line_number, errors)
                 if index < len(entries) and entries[index][1] > indentation:
@@ -476,6 +477,28 @@ def _active_markdown(markdown: str) -> str:
     fence_length = 0
 
     for original_line in markdown.splitlines():
+        if fence_character is not None:
+            closing_fence = re.fullmatch(
+                rf" {{0,3}}{re.escape(fence_character)}{{{fence_length},}}[ \t]*",
+                original_line,
+            )
+            if closing_fence is not None:
+                fence_character = None
+                fence_length = 0
+            continue
+
+        if not in_comment:
+            opening_fence = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", original_line)
+            if opening_fence is not None:
+                marker = opening_fence.group(1)
+                info_string = opening_fence.group(2)
+                if marker[0] != "`" or "`" not in info_string:
+                    fence_character = marker[0]
+                    fence_length = len(marker)
+                    continue
+            if re.match(r"^(?: {4}| {0,3}\t)", original_line):
+                continue
+
         line_parts: list[str] = []
         cursor = 0
         while cursor < len(original_line):
@@ -488,31 +511,42 @@ def _active_markdown(markdown: str) -> str:
                 cursor = comment_end + 3
                 continue
 
-            comment_start = original_line.find("<!--", cursor)
-            if comment_start < 0:
-                line_parts.append(original_line[cursor:])
-                cursor = len(original_line)
-                break
-            line_parts.append(original_line[cursor:comment_start])
-            in_comment = True
-            cursor = comment_start + 4
+            if original_line[cursor] == "`":
+                run_end = cursor + 1
+                while run_end < len(original_line) and original_line[run_end] == "`":
+                    run_end += 1
+                run_length = run_end - cursor
+                closing_start = run_end
+                while closing_start < len(original_line):
+                    if original_line[closing_start] != "`":
+                        closing_start += 1
+                        continue
+                    closing_end = closing_start + 1
+                    while (
+                        closing_end < len(original_line)
+                        and original_line[closing_end] == "`"
+                    ):
+                        closing_end += 1
+                    if closing_end - closing_start == run_length:
+                        line_parts.append(original_line[cursor:closing_end])
+                        cursor = closing_end
+                        break
+                    closing_start = closing_end
+                else:
+                    line_parts.append(original_line[cursor:run_end])
+                    cursor = run_end
+                continue
+
+            if original_line.startswith("<!--", cursor):
+                in_comment = True
+                cursor += 4
+                continue
+
+            line_parts.append(original_line[cursor])
+            cursor += 1
 
         line = "".join(line_parts)
-        if fence_character is not None:
-            closing_fence = re.fullmatch(
-                rf" {{0,3}}{re.escape(fence_character)}{{{fence_length},}}[ \t]*",
-                line,
-            )
-            if closing_fence is not None:
-                fence_character = None
-                fence_length = 0
-            continue
-
-        opening_fence = re.match(r"^ {0,3}(`{3,}|~{3,})(?:.*)$", line)
-        if opening_fence is not None:
-            marker = opening_fence.group(1)
-            fence_character = marker[0]
-            fence_length = len(marker)
+        if re.match(r"^(?: {4}| {0,3}\t)", line):
             continue
         active_lines.append(line)
 
@@ -607,7 +641,7 @@ def _validate_skill_and_contracts(
         active_skill_text = _active_markdown(skill_text)
         for outcome in ("verified", "partially verified", "unverified"):
             definition = re.compile(
-                rf"^\s*-\s+`{re.escape(outcome)}`:\s+\S.*$", re.MULTILINE
+                rf"^ {{0,3}}-\s+`{re.escape(outcome)}`:\s+\S.*$", re.MULTILINE
             )
             if definition.search(active_skill_text) is None:
                 errors.append(

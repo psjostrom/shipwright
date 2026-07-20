@@ -244,6 +244,21 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
         self.assertTrue(any("malformed single-quoted scalar" in error for error in errors))
 
+    def test_skill_frontmatter_parser_accepts_commented_mapping_keys(self) -> None:
+        errors: list[str] = []
+        frontmatter = validator._parse_frontmatter(
+            "---\nmetadata: # grouped values\n  value: present\n---\n",
+            errors,
+        )
+        self.assertEqual([], errors)
+        self.assertEqual({"metadata": {"value": "present"}}, frontmatter)
+
+    def test_openai_metadata_accepts_commented_mapping_keys(self) -> None:
+        metadata = "plugins/shipwright/skills/shipwright/agents/openai.yaml"
+        self.replace(metadata, "interface:\n", "interface: # UI fields\n")
+        self.replace(metadata, "policy:\n", "policy: # invocation policy\n")
+        self.assertEqual([], validate_bundle(self.repo_root))
+
     def test_skill_frontmatter_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
@@ -474,6 +489,79 @@ class ShipwrightValidatorTests(unittest.TestCase):
                         without_active + "\n" + spoof, encoding="utf-8"
                     )
                     self.assert_error("QA outcome definition")
+        self.path(skill).write_text(original, encoding="utf-8")
+
+    def test_indented_code_cannot_supply_qa_outcome_definitions(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        definitions = (
+            "- `verified`: every mandatory observation and artifact exists and the flow passed.\n",
+            "- `partially verified`: every core observation passed, but a named non-core planned observation was unavailable.\n",
+            "- `unverified`: the flow could not run, the interaction surface was unavailable, or core evidence is missing.\n",
+        )
+        for definition in definitions:
+            without_active = original.replace(definition, "", 1)
+            for indentation in ("    ", "\t"):
+                with self.subTest(
+                    outcome=definition.split(":", 1)[0], indentation=repr(indentation)
+                ):
+                    self.path(skill).write_text(
+                        without_active + "\n" + indentation + definition,
+                        encoding="utf-8",
+                    )
+                    self.assert_error("QA outcome definition")
+        self.path(skill).write_text(original, encoding="utf-8")
+
+    def test_fenced_literal_html_comment_does_not_hide_active_qa_definitions(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        marker = "## 13. Record QA outcomes\n"
+        for label, fenced_literal in (
+            ("backtick", "```text\n<!-- literal code text\n```\n"),
+            ("tilde", "~~~text\n<!-- literal code text\n~~~\n"),
+        ):
+            with self.subTest(fence=label):
+                self.path(skill).write_text(
+                    original.replace(marker, fenced_literal + "\n" + marker, 1),
+                    encoding="utf-8",
+                )
+                self.assertEqual([], validate_bundle(self.repo_root))
+        self.path(skill).write_text(original, encoding="utf-8")
+
+    def test_inline_code_literal_html_comment_does_not_hide_active_qa_definitions(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        marker = "## 13. Record QA outcomes\n"
+        self.replace(skill, marker, "`<!-- literal code text`\n\n" + marker)
+        self.assertEqual([], validate_bundle(self.repo_root))
+
+    def test_invalid_backtick_info_string_does_not_hide_active_qa_definitions(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        marker = "## 13. Record QA outcomes\n"
+        self.replace(skill, marker, "```text`invalid\n\n" + marker)
+        self.assertEqual([], validate_bundle(self.repo_root))
+
+    def test_qa_outcome_fences_preserve_marker_length_and_indentation_rules(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        definition = (
+            "- `verified`: every mandatory observation and artifact exists and the flow passed.\n"
+        )
+        without_active = original.replace(definition, "", 1)
+        wrappers = (
+            ("longer backtick closer", "````text\n{} `````\n"),
+            ("longer tilde closer", "~~~~text\n{} ~~~~~\n"),
+            ("three-space backtick", "   ```text\n{}   ```\n"),
+            ("three-space tilde", "   ~~~text\n{}   ~~~\n"),
+            ("too-short backtick closer", "````text\n{} ```\n````\n"),
+            ("too-short tilde closer", "~~~~text\n{} ~~~\n~~~~\n"),
+        )
+        for label, wrapper in wrappers:
+            with self.subTest(context=label):
+                self.path(skill).write_text(
+                    without_active + "\n" + wrapper.format(definition),
+                    encoding="utf-8",
+                )
+                self.assert_error("QA outcome definition")
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_reports_missing_authorization_boundaries(self) -> None:
