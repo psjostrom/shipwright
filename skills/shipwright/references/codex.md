@@ -4,7 +4,7 @@ Read this file completely only when Shipwright is running in Codex. The shared `
 
 ## Minimum runtime and capability probe
 
-Require Codex CLI 0.139.0 or newer, or a Codex desktop runtime with equivalent plugin discovery, Agent Skills, multi-agent dispatch, and current-turn metadata. Probe the actual harness/version and tool schemas; do not infer capabilities from documentation or configuration alone. A compatible newer release proceeds with a warning in the ledger. A below-minimum, explicitly incompatible, unverified, or capability-incomplete runtime fails preflight.
+Require Codex CLI 0.139.0 or newer, or a Codex desktop runtime with equivalent plugin discovery, Agent Skills, multi-agent dispatch, and current-turn metadata. Probe the actual harness/version and tool schemas; do not infer capabilities from documentation or configuration alone. A compatible newer release proceeds with a warning retained in controller preflight state and later reported or ingested according to the shared workflow. A below-minimum, explicitly incompatible, unverified, or capability-incomplete runtime fails preflight.
 
 No releases newer than the minimum are currently listed as explicitly incompatible. This statement does not override observed missing capabilities.
 
@@ -40,6 +40,14 @@ On failure, stop before all Shipwright artifacts and say: select **GPT-5.6 Sol /
 | Critical | Sol / High |
 
 Treat the exact observed model IDs for Luna, Terra, and Sol as the platform's current IDs only after the harness exposes them. Compare observed family and effort to the table; do not invent an ID from a display label.
+
+Normalize the allowlisted worker families in this order:
+
+```text
+Luna < Terra < Sol
+```
+
+A child meets a requested tier only when **both** dimensions meet their floors: its normalized model-family rank is at least the requested family rank and its normalized effort rank is at least the requested effort rank. Dimensions do not compensate for each other. For example, Sol/Medium fails a Terra/High request, while Terra/xhigh passes it and records the stronger-effort cost deviation. An unknown, generic, future, or unallowlisted model family and an unknown or absent effort label are unverified, not stronger. Apply the shared missing/conflicting-evidence transition rather than guessing a rank.
 
 ## Native dispatch and fallback
 

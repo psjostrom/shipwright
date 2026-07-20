@@ -4,7 +4,7 @@ Read this file completely only when Shipwright is running in Claude Code. The sh
 
 ## Minimum runtime and capability probe
 
-Require Claude Code 2.1.117 or newer with plugin skill discovery, Task/Agent subagents, and current-turn model/effort evidence. Probe the active version and tool schemas. A compatible newer release proceeds with a warning in the ledger. A below-minimum, explicitly incompatible, unverified, or capability-incomplete runtime fails preflight.
+Require Claude Code 2.1.117 or newer with plugin skill discovery, Task/Agent subagents, and current-turn model/effort evidence. Probe the active version and tool schemas. A compatible newer release proceeds with a warning retained in controller preflight state and later reported or ingested according to the shared workflow. A below-minimum, explicitly incompatible, unverified, or capability-incomplete runtime fails preflight.
 
 No releases newer than the minimum are currently listed as explicitly incompatible. This statement does not override observed missing capabilities.
 
@@ -44,6 +44,14 @@ On failure, stop before all Shipwright artifacts and say: select **Opus 4.7 / xh
 | Critical | Opus / xhigh |
 
 Resolve aliases to active model IDs before recording actual execution. Do not infer effort where the platform does not expose it.
+
+Normalize resolved, allowlisted worker families in this order:
+
+```text
+Haiku < Sonnet < Opus
+```
+
+A child meets a requested tier only when **both** specified dimensions meet their floors: its normalized model-family rank is at least the requested family rank and, when the route specifies an effort floor, its normalized effort rank is at least that floor. Dimensions do not compensate for each other. For example, Opus/Medium fails a Sonnet/High request, while Sonnet/xhigh fails an Opus/xhigh request. The Haiku mechanical route intentionally has no effort floor; absent effort is accepted only for that route, while a reported unknown nonempty effort label remains unverified. For every other route, absent or unknown effort is unverified. An unresolved alias or unknown, generic, future, or unallowlisted family is always unverified. Apply the shared missing/conflicting-evidence transition rather than guessing a rank.
 
 ## Native dispatch and fallback
 

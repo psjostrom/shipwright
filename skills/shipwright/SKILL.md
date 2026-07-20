@@ -33,7 +33,7 @@ Before design, verify Superpowers 6.1.1 or newer and every required namespaced s
 - **REQUIRED FOR COMPLETION:** `superpowers:verification-before-completion`
 - **REQUIRED FOR HANDOFF:** `superpowers:finishing-a-development-branch`
 
-Also verify the harness minimum and capabilities in its platform reference. A compatible newer release proceeds with a ledger warning that it is newer than the last behaviorally tested version. Stop and report the complete problem set when a version is below minimum, explicitly incompatible, unverified, mixed across package roots, or missing any dependency or required capability. Do not copy a missing workflow into Shipwright. After install, upgrade/downgrade, reload, or restart, rerun the full preflight.
+Also verify the harness minimum and capabilities in its platform reference. A compatible newer release proceeds with a warning that it is newer than the last behaviorally tested version. The controller retains that warning in preflight state: a reduced trivial workflow reports it without creating Shipwright artifacts, while a nontrivial workflow ingests it when the ledger is initialized. Stop and report the complete problem set when a version is below minimum, explicitly incompatible, unverified, mixed across package roots, or missing any dependency or required capability. Do not copy a missing workflow into Shipwright. After install, upgrade/downgrade, reload, or restart, rerun the full preflight.
 
 ## 3. Reduce trivial work
 
@@ -49,7 +49,14 @@ After approval, use `superpowers:using-git-worktrees` and `superpowers:writing-p
 
 Before writing any `.superpowers/` path, run `git check-ignore` on that exact path. If needed, add the exact `.superpowers/` pattern to the repository-local exclude file returned by `git rev-parse --git-path info/exclude`; never edit a global ignore. Re-check exclusion. If local exclusion cannot be established, stop and ask before using an external temporary location.
 
-Create or resume `.superpowers/sdd/progress.md`. The controller is its only writer. Before dispatch or resume, reject any stale or duplicate task/dispatch whose task ID, dispatch ID, base commit, or completion verdict conflicts with the ledger. Give every dispatch a unique ID and artifact directory under `.superpowers/sdd/runs/<dispatch-id>/`.
+Create or resume `.superpowers/sdd/progress.md`. The controller is its only writer. On initialization, ingest any compatible-newer warnings retained during preflight. Before every dispatch or resume:
+
+- Stop on every reused dispatch ID, even when all recorded fields match; never overwrite its artifact directory.
+- Stop every dispatch for a task whose ledger verdict is already complete, even when task ID, base, and verdict match.
+- Stop on a stale or conflicting task ID, base commit, head, or verdict.
+- Resume only a ledger entry explicitly marked `resumable` and incomplete. A resume keeps the parent task ID and history but creates a new child dispatch ID and a unique artifact directory.
+
+Give every new child dispatch a unique ID and artifact directory under `.superpowers/sdd/runs/<dispatch-id>/`.
 
 Every ledger dispatch entry contains:
 
@@ -83,6 +90,8 @@ Each child receives the task brief, applicable repository instructions, base rev
 ## 7. Validate child evidence
 
 Require child thread/run ID plus current-turn model and effort from an accepted platform evidence class. Independently validate it when the harness exposes the child turn/session record.
+
+Use the selected platform reference's model-family and effort orders. A result is sufficient only when every required dimension independently meets its requested floor; a stronger dimension never compensates for a weaker or unknown one.
 
 | Observed evidence | Transition |
 | --- | --- |
@@ -134,10 +143,10 @@ Store redacted QA evidence under the already excluded `.superpowers/sdd/qa/<run-
 
 | Surface | Required route and core observations |
 | --- | --- |
-| Web | Probe `agent-browser --version`; require 0.32.3 or compatible newer and an isolated real browser. Exercise the changed flow and affected loading/error/empty states; inspect semantic DOM/UI, console and failed network requests when networked; capture material screenshots. Existing Playwright tests remain regression evidence. Add Playwright for persistent or Chromium/Firefox/WebKit coverage. |
-| Android/iOS | Probe `argent --version`; require 0.16.0 or compatible newer. Android also needs `adb` and an emulator; iOS needs macOS, Xcode command-line tools, and a Simulator. Exercise the changed flow; inspect accessibility/component state, crashes/errors and failed requests when networked; capture material screenshots. Preserve app/device data. |
+| Web | Probe `agent-browser --version`; require 0.32.3 or compatible newer and an isolated real browser. Exercise the changed flow and affected loading/error/empty states at relevant affected desktop and mobile viewports; inspect semantic DOM/UI, console and failed network requests when networked; capture material screenshots and viewport evidence. Existing Playwright tests remain regression evidence. Add Playwright for persistent or Chromium/Firefox/WebKit coverage. |
+| Android/iOS | Probe `argent --version`; require 0.16.0 or compatible newer. Android also needs `adb` and an emulator; iOS needs macOS, Xcode command-line tools, and a Simulator. Exercise the changed flow; inspect accessibility/component state, crashes/errors and failed requests when networked; capture material screenshots and performance evidence when performance is in scope. Preserve app/device data. |
 | CLI | Build the distributable; run with isolated HOME, XDG config/cache/state, and task-specific data. Verify stdout, stderr, exit status, effects, malformed input, expected failures, and idempotence when promised. |
-| Backend | Run isolated local dependencies and a real request/job through persistence and intended side effects. Mock only external boundaries. Verify response/status, stored state, expected failures, and retries/idempotence when promised. |
+| Backend | Run isolated local dependencies and a real request/job through persistence and intended side effects. Mock only external boundaries. Verify response/status, stored state, logs, expected failures, and retries/idempotence when promised. |
 
 An alternative browser/mobile tool is equivalent only when it supplies every core capability: a real rendered target, semantic inspection, user interaction, crash/log or console inspection, failed-network visibility when applicable, material screenshots, and isolated session control. Missing a core capability is `unverified`, not equivalent.
 
