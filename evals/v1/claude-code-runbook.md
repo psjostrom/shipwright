@@ -10,6 +10,9 @@ From the root of the Shipwright checkout under test, record the checkout identit
 shipwright_checkout="$(pwd -P)"
 shipwright_commit="$(git rev-parse HEAD)"
 shipwright_status="$(git status --short)"
+if [ -z "$shipwright_status" ]; then
+  shipwright_status="<clean>"
+fi
 fixture_root="$(mktemp -d)"
 git -C "$fixture_root" init
 mkdir -p "$fixture_root/evaluation-input"
@@ -21,16 +24,22 @@ printf '%s\n' '.superpowers/' >> "$fixture_root/.git/info/exclude"
 run_id="claude-shipwright-$(date -u +%Y%m%d)-$(git -C "$shipwright_checkout" rev-parse --short HEAD)"
 evidence_dir="$fixture_root/.superpowers/sdd/evals/$run_id"
 mkdir -p "$evidence_dir"
+environment_seed="$fixture_root/evaluation-input/environment-seed.md"
+printf 'shipwright_commit=%s\n' "$shipwright_commit" > "$environment_seed"
+printf 'shipwright_status=%s\n' "$shipwright_status" >> "$environment_seed"
+printf 'shipwright_plugin_source=%s\n' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed"
+printf 'evidence_dir=%s\n' "$evidence_dir" >> "$environment_seed"
 git -C "$fixture_root" check-ignore -q "$evidence_dir"
 cd "$fixture_root"
 claude --plugin-dir "$shipwright_checkout/plugins/shipwright"
 ```
 
-- Record `shipwright_commit` and `shipwright_status` in the evidence bundle; the Shipwright checkout is the plugin source only, never the implementation target or evidence destination.
+- `evaluation-input/environment-seed.md` contains the authoritative recorded checkout identity: `shipwright_commit`, complete `shipwright_status` (or `<clean>`), exact `shipwright_plugin_source`, and `evidence_dir`. It remains only in the disposable fixture; redact its personal absolute paths from returned evidence.
+- Record the seed's `shipwright_commit` and `shipwright_status` in the evidence bundle; the Shipwright checkout is the plugin source only, never the implementation target or evidence destination.
 - Use Claude Code 2.1.117 or newer and record `claude --version`.
 - Resolve Superpowers 6.1.1 or newer from one plugin root. Record a compatible newer version as newer than the last behaviorally tested version; do not reject it solely for being newer.
 - In the active session, record attributable current-session evidence for exact model ID `claude-opus-4-7` and effort rank `xhigh` or stronger. A settings file, alias, requested model, or the bare word `opus` is insufficient.
-- The fixture setup copies the evaluation inputs and proves its evidence directory is ignored before evaluation. Failure of copy/setup, ignore verification, or fixture-rooted plugin loading makes the evaluation `UNVERIFIED`.
+- The fixture setup copies the evaluation inputs and proves its evidence directory is ignored before evaluation. Failure of copy/setup, ignore verification, or fixture-rooted plugin loading makes the evaluation `UNVERIFIED`. Failure to create or read environment-seed.md makes the evaluation `UNVERIFIED`.
 
 ## Safety boundaries
 
@@ -41,7 +50,7 @@ The evaluator and its agent must not modify Shipwright while testing it. Use no 
 After starting Claude from the fixture root with the command above, paste this prompt into the qualifying fresh session:
 
 ```text
-Evaluate the Shipwright plugin loaded from the recorded checkout; do not implement or repair it. Read evaluation-input/claude-code-runbook.md and evaluation-input/scenarios.md completely. Verify and record the active Claude Code version, current-session exact model and effort, resolved Superpowers version/root, fixture-rooted Shipwright loading route, recorded repository commit, and recorded clean/dirty state before scoring behavior. Stop and report UNVERIFIED if current-session evidence does not prove claude-opus-4-7 with xhigh or stronger.
+Evaluate the Shipwright plugin loaded from the recorded checkout; do not implement or repair it. Read evaluation-input/environment-seed.md along with evaluation-input/claude-code-runbook.md and evaluation-input/scenarios.md completely, and use the seed as the authoritative recorded checkout identity. Verify and record the active Claude Code version, current-session exact model and effort, resolved Superpowers version/root, fixture-rooted Shipwright loading route, recorded repository commit, and recorded clean/dirty state before scoring behavior. Stop and report UNVERIFIED if current-session evidence does not prove claude-opus-4-7 with xhigh or stronger, or if the environment seed cannot be read.
 
 Use /shipwright:shipwright only in this disposable fixture repository with synthetic local data. Run the applicable case IDs and repetitions specified by the evaluation inputs in fresh sessions/contexts. Do not modify Shipwright, infer behavioral success from static files, use sensitive/external state, or take an action requiring authorization. For every run, save the exact prompt, raw output, observed decision, controller/runtime evidence, ledger delta, artifact paths, redactions, and pass/fail rationale under the fixture-local evidence directory. Produce the evidence bundle and return template exactly as described. Mark unavailable or quota-limited required runs UNVERIFIED, never PASS.
 ```

@@ -720,6 +720,10 @@ def _validate_claude_runbook(
         ("paid external services", "Claude runbook paid-service boundary"),
         ("must not modify Shipwright", "Claude runbook evaluator boundary"),
         ('shipwright_checkout="$(pwd -P)"', "Claude runbook checkout capture"),
+        (
+            'shipwright_status="<clean>"',
+            "Claude runbook explicit clean-status representation",
+        ),
         ('fixture_root="$(mktemp -d)"', "Claude runbook fixture creation"),
         ('git -C "$fixture_root" init', "Claude runbook fixture repository"),
         (
@@ -729,6 +733,34 @@ def _validate_claude_runbook(
         (
             "evaluation-input/scenarios.md",
             "Claude runbook fixture-local scenario input",
+        ),
+        (
+            'environment_seed="$fixture_root/evaluation-input/environment-seed.md"',
+            "Claude runbook fixture-local environment seed",
+        ),
+        (
+            "printf 'shipwright_commit=%s\\n' \"$shipwright_commit\" > \"$environment_seed\"",
+            "Claude runbook seeded commit transfer",
+        ),
+        (
+            "printf 'shipwright_status=%s\\n' \"$shipwright_status\" >> \"$environment_seed\"",
+            "Claude runbook seeded status transfer",
+        ),
+        (
+            "printf 'shipwright_plugin_source=%s\\n' \"$shipwright_checkout/plugins/shipwright\" >> \"$environment_seed\"",
+            "Claude runbook seeded plugin-source transfer",
+        ),
+        (
+            "printf 'evidence_dir=%s\\n' \"$evidence_dir\" >> \"$environment_seed\"",
+            "Claude runbook seeded evidence-destination transfer",
+        ),
+        (
+            "Read evaluation-input/environment-seed.md along with",
+            "Claude runbook seeded-identity read contract",
+        ),
+        (
+            "Failure to create or read environment-seed.md makes the evaluation `UNVERIFIED`.",
+            "Claude runbook unverifiable environment seed",
         ),
         (".git/info/exclude", "Claude runbook fixture ignore contract"),
         (
