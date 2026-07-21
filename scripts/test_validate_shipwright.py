@@ -135,12 +135,24 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "credentials",
             "paid external services",
             "must not modify Shipwright",
+            'shipwright_checkout="$(pwd -P)"',
+            'fixture_root="$(mktemp -d)"',
+            'git -C "$fixture_root" init',
+            "evaluation-input/claude-code-runbook.md",
+            "evaluation-input/scenarios.md",
+            ".git/info/exclude",
+            'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
+            'claude --plugin-dir "$shipwright_checkout/plugins/shipwright"',
+            'cd "$fixture_root"',
+            'evidence_dir="$fixture_root/.superpowers/sdd/evals/$run_id"',
+            "copy/setup, ignore verification, or fixture-rooted plugin loading",
         )
-        for marker in required_markers:
+        for index, marker in enumerate(required_markers):
             with self.subTest(marker=marker):
-                self.replace(runbook_path, marker, f"removed-{marker}")
+                replacement = f"__missing_contract_{index}__"
+                self.replace(runbook_path, marker, replacement)
                 self.assert_error("Claude runbook")
-                self.replace(runbook_path, f"removed-{marker}", marker)
+                self.replace(runbook_path, replacement, marker)
 
     def test_reports_every_missing_claude_runbook_case(self) -> None:
         runbook_path = "plugins/shipwright/evals/v1/claude-code-runbook.md"

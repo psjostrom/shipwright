@@ -719,6 +719,35 @@ def _validate_claude_runbook(
         ("credentials", "Claude runbook credential boundary"),
         ("paid external services", "Claude runbook paid-service boundary"),
         ("must not modify Shipwright", "Claude runbook evaluator boundary"),
+        ('shipwright_checkout="$(pwd -P)"', "Claude runbook checkout capture"),
+        ('fixture_root="$(mktemp -d)"', "Claude runbook fixture creation"),
+        ('git -C "$fixture_root" init', "Claude runbook fixture repository"),
+        (
+            "evaluation-input/claude-code-runbook.md",
+            "Claude runbook fixture-local runbook input",
+        ),
+        (
+            "evaluation-input/scenarios.md",
+            "Claude runbook fixture-local scenario input",
+        ),
+        (".git/info/exclude", "Claude runbook fixture ignore contract"),
+        (
+            'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
+            "Claude runbook fixture evidence ignore verification",
+        ),
+        (
+            'claude --plugin-dir "$shipwright_checkout/plugins/shipwright"',
+            "Claude runbook fixture-rooted plugin loading",
+        ),
+        ('cd "$fixture_root"', "Claude runbook fixture-rooted workspace"),
+        (
+            'evidence_dir="$fixture_root/.superpowers/sdd/evals/$run_id"',
+            "Claude runbook fixture-local evidence destination",
+        ),
+        (
+            "copy/setup, ignore verification, or fixture-rooted plugin loading",
+            "Claude runbook unverifiable fixture setup",
+        ),
     )
     _require_markers(
         runbook_text,
@@ -728,11 +757,6 @@ def _validate_claude_runbook(
     )
     if runbook_text is None:
         return
-    for marker, label in required_markers:
-        if f"removed-{marker}" in runbook_text:
-            errors.append(
-                f"{_display(CLAUDE_RUNBOOK)} is missing {label}: {marker!r}"
-            )
     for case in CLAUDE_RUNBOOK_CASES:
         if f"`{case}`" not in runbook_text:
             errors.append(
