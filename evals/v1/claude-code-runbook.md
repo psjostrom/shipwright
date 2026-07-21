@@ -29,9 +29,12 @@ printf 'shipwright_commit=%s\n' "$shipwright_commit" > "$environment_seed"
 printf 'shipwright_status=%s\n' "$shipwright_status" >> "$environment_seed"
 printf 'shipwright_plugin_source=%s\n' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed"
 printf 'evidence_dir=%s\n' "$evidence_dir" >> "$environment_seed"
-git -C "$fixture_root" check-ignore -q "$evidence_dir"
-cd "$fixture_root"
-claude --plugin-dir "$shipwright_checkout/plugins/shipwright"
+if ! git -C "$fixture_root" check-ignore -q "$evidence_dir"; then
+  printf '%s\n' "evidence_dir is not ignored; mark the evaluation UNVERIFIED and stop" >&2
+else
+  cd "$fixture_root" &&
+    claude --plugin-dir "$shipwright_checkout/plugins/shipwright"
+fi
 ```
 
 - `evaluation-input/environment-seed.md` contains the authoritative recorded checkout identity: `shipwright_commit`, complete `shipwright_status` (or `<clean>`), exact `shipwright_plugin_source`, and `evidence_dir`. It remains only in the disposable fixture; redact its personal absolute paths from returned evidence.

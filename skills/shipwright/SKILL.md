@@ -89,7 +89,7 @@ Each child receives the task brief, applicable repository instructions, base rev
 
 ## 7. Validate child evidence
 
-Require child thread/run ID plus current-turn model and effort from an accepted platform evidence class. Independently validate it when the harness exposes the child turn/session record.
+Require child thread/run ID plus current-turn model from an accepted platform evidence class. Require current-turn effort when the selected route defines an effort floor; absent effort is allowed only when that route defines none. Independently validate each reported dimension when the harness exposes the child turn/session record. Any unknown nonempty model or effort label is unverified.
 
 Use the selected platform reference's model-family and effort orders. A result is sufficient only when every required dimension independently meets its requested floor; a stronger dimension never compensates for a weaker or unknown one.
 
@@ -114,7 +114,7 @@ Use `superpowers:subagent-driven-development` and `superpowers:requesting-code-r
 5. Send the complete Critical/Important finding set to one fixer selected for current complexity; require covering checks and a report.
 6. Dispatch a fresh independent re-review. Complete the task only when both verdicts pass and no Critical/Important finding remains.
 
-`NEEDS_CONTEXT` before an implementation attempt improves the brief and consumes no remediation cycle. Broad scope may be split, but inherited findings retain their stable IDs and consumed cycles.
+`NEEDS_CONTEXT` before an implementation attempt improves the brief and consumes no remediation cycle. Allow at most two context-repair redispatches for a task; each must record the missing context and use a materially revised brief. If the second redispatch still returns `NEEDS_CONTEXT`, set `BLOCKED`, keep the verdict incomplete, mark the ledger entry `resumable: awaiting user context`, record the unresolved context, and ask the user. Do not dispatch again automatically. Only after the user supplies the missing context and explicitly asks to continue, reopen the same ledger task, record the authorization, and reset the two-redispatch context-repair budget for the materially revised brief. Resume with a new child dispatch ID and unique artifact directory. Renaming or splitting the task cannot reset the budget before that user-authorized reopen. Broad scope may be split, but inherited findings retain their stable IDs and consumed cycles.
 
 ## 9. Enforce stable findings and terminal states
 

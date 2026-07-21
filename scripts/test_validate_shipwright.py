@@ -150,6 +150,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "Failure to create or read environment-seed.md makes the evaluation `UNVERIFIED`.",
             ".git/info/exclude",
             'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
+            'if ! git -C "$fixture_root" check-ignore -q "$evidence_dir"; then',
+            "evidence_dir is not ignored; mark the evaluation UNVERIFIED and stop",
             'claude --plugin-dir "$shipwright_checkout/plugins/shipwright"',
             'cd "$fixture_root"',
             'evidence_dir="$fixture_root/.superpowers/sdd/evals/$run_id"',
@@ -169,6 +171,43 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.replace(runbook_path, f"`{case}`", f"`removed-{case}`")
                 self.assert_error(f"missing delegated Claude case {case}")
                 self.replace(runbook_path, f"`removed-{case}`", f"`{case}`")
+
+    def test_rejects_unguarded_or_shell_terminating_claude_launch(self) -> None:
+        runbook_path = "plugins/shipwright/evals/v1/claude-code-runbook.md"
+        original = self.path(runbook_path).read_text(encoding="utf-8")
+        guarded_tail = (
+            "else\n"
+            '  cd "$fixture_root" &&\n'
+            '    claude --plugin-dir "$shipwright_checkout/plugins/shipwright"\n'
+            "fi"
+        )
+        failure_line = (
+            "  printf '%s\\n' \"evidence_dir is not ignored; mark the evaluation "
+            "UNVERIFIED and stop\" >&2\n"
+        )
+        mutations = {
+            "launch after guard": original.replace(
+                guarded_tail,
+                "else\n"
+                "  :\n"
+                "fi\n"
+                'cd "$fixture_root"\n'
+                'claude --plugin-dir "$shipwright_checkout/plugins/shipwright"',
+                1,
+            ),
+            "exit interactive shell": original.replace(
+                failure_line, failure_line + "  exit 1\n", 1
+            ),
+            "return from sourced shell": original.replace(
+                failure_line, failure_line + "  return 1\n", 1
+            ),
+        }
+        for label, content in mutations.items():
+            with self.subTest(case=label):
+                self.assertNotEqual(original, content)
+                self.path(runbook_path).write_text(content, encoding="utf-8")
+                self.assert_error("guarded launch")
+        self.path(runbook_path).write_text(original, encoding="utf-8")
 
     def test_reports_wrong_manifest_names(self) -> None:
         for relative_path in (
@@ -477,8 +516,36 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.replace(skill, "BLOCKED_RUNTIME", "RUNTIME_STOP")
         self.replace(skill, "one fallback per gated role", "fallback when useful")
         self.replace(skill, "thread/run ID", "child identifier")
+        self.replace(
+            skill,
+            "when the selected route defines an effort floor",
+            "for every selected route",
+        )
+        self.replace(
+            skill,
+            "absent effort is allowed only when that route defines none",
+            "absent effort is always allowed",
+        )
+        self.replace(
+            skill,
+            "Independently validate each reported dimension",
+            "Trust the combined evidence",
+        )
+        self.replace(
+            skill,
+            "Any unknown nonempty model or effort label is unverified.",
+            "Unknown labels may be accepted.",
+        )
         errors = validate_bundle(self.repo_root)
-        for fragment in ("BLOCKED_RUNTIME", "runtime retry", "child runtime evidence"):
+        for fragment in (
+            "BLOCKED_RUNTIME",
+            "runtime retry",
+            "child runtime evidence",
+            "conditional effort evidence",
+            "absent effort evidence",
+            "independent evidence dimensions",
+            "unknown effort evidence",
+        ):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_review_and_bounded_remediation_contracts(self) -> None:
@@ -486,8 +553,48 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.replace(skill, "fresh independent reviewer", "reviewer")
         self.replace(skill, "at most two ordinary remediation cycles", "several cycles")
         self.replace(skill, "one final escalated attempt", "escalate if needed")
+        self.replace(
+            skill,
+            "at most two context-repair redispatches",
+            "context-repair redispatches as needed",
+        )
+        self.replace(
+            skill,
+            "If the second redispatch still returns `NEEDS_CONTEXT`, set `BLOCKED`",
+            "If context is still missing, retry",
+        )
+        self.replace(
+            skill,
+            "`resumable: awaiting user context`",
+            "resumable later",
+        )
+        self.replace(
+            skill,
+            "Do not dispatch again automatically.",
+            "Retry if useful.",
+        )
+        self.replace(
+            skill,
+            "the user supplies the missing context and explicitly asks to continue",
+            "more context appears",
+        )
+        self.replace(
+            skill,
+            "reset the two-redispatch context-repair budget",
+            "continue the existing retry budget",
+        )
         errors = validate_bundle(self.repo_root)
-        for fragment in ("independent review", "two remediation", "escalated remediation"):
+        for fragment in (
+            "independent review",
+            "two remediation",
+            "escalated remediation",
+            "context-repair retry cap",
+            "NEEDS_CONTEXT terminal transition",
+            "NEEDS_CONTEXT ledger state",
+            "NEEDS_CONTEXT automatic stop",
+            "NEEDS_CONTEXT user-authorized reopen",
+            "NEEDS_CONTEXT post-intervention budget",
+        ):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_qa_routes_and_terminal_states(self) -> None:

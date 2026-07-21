@@ -40,6 +40,15 @@ DEFAULT_PROMPT = (
     "Use $shipwright:shipwright to build this feature end to end with independent "
     "review and real verification."
 )
+CLAUDE_GUARDED_LAUNCH = (
+    'if ! git -C "$fixture_root" check-ignore -q "$evidence_dir"; then\n'
+    "  printf '%s\\n' \"evidence_dir is not ignored; mark the evaluation "
+    "UNVERIFIED and stop\" >&2\n"
+    "else\n"
+    '  cd "$fixture_root" &&\n'
+    '    claude --plugin-dir "$shipwright_checkout/plugins/shipwright"\n'
+    "fi"
+)
 
 SCENARIO_CASES = (
     "gate-codex-pass",
@@ -620,10 +629,50 @@ def _validate_skill_and_contracts(
                 "reachable Claude reference link",
             ),
             ("thread/run ID", "child runtime evidence contract"),
+            (
+                "when the selected route defines an effort floor",
+                "conditional effort evidence contract",
+            ),
+            (
+                "absent effort is allowed only when that route defines none",
+                "absent effort evidence contract",
+            ),
+            (
+                "Independently validate each reported dimension",
+                "independent evidence dimensions contract",
+            ),
+            (
+                "Any unknown nonempty model or effort label is unverified.",
+                "unknown effort evidence rejection",
+            ),
             ("one fallback per gated role", "runtime retry contract"),
             ("BLOCKED_RUNTIME", "BLOCKED_RUNTIME terminal state"),
             ("fresh independent reviewer", "independent review contract"),
             ("at most two ordinary remediation cycles", "two remediation cycle cap"),
+            (
+                "at most two context-repair redispatches",
+                "context-repair retry cap",
+            ),
+            (
+                "If the second redispatch still returns `NEEDS_CONTEXT`, set `BLOCKED`",
+                "NEEDS_CONTEXT terminal transition",
+            ),
+            (
+                "`resumable: awaiting user context`",
+                "NEEDS_CONTEXT ledger state",
+            ),
+            (
+                "Do not dispatch again automatically.",
+                "NEEDS_CONTEXT automatic stop",
+            ),
+            (
+                "the user supplies the missing context and explicitly asks to continue",
+                "NEEDS_CONTEXT user-authorized reopen",
+            ),
+            (
+                "reset the two-redispatch context-repair budget",
+                "NEEDS_CONTEXT post-intervention budget",
+            ),
             ("one final escalated attempt", "escalated remediation contract"),
             ("agent-browser", "agent-browser web QA route"),
             ("Playwright", "Playwright web regression route"),
@@ -767,6 +816,15 @@ def _validate_claude_runbook(
             'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
             "Claude runbook fixture evidence ignore verification",
         ),
+        (
+            'if ! git -C "$fixture_root" check-ignore -q "$evidence_dir"; then',
+            "Claude runbook guarded ignore verification",
+        ),
+        (
+            "evidence_dir is not ignored; mark the evaluation UNVERIFIED and stop",
+            "Claude runbook ignore-verification failure path",
+        ),
+        (CLAUDE_GUARDED_LAUNCH, "Claude runbook guarded launch"),
         (
             'claude --plugin-dir "$shipwright_checkout/plugins/shipwright"',
             "Claude runbook fixture-rooted plugin loading",
