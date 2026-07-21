@@ -99,6 +99,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "plugins/shipwright/skills/shipwright/references/codex.md",
             "plugins/shipwright/skills/shipwright/references/claude-code.md",
             "plugins/shipwright/skills/shipwright/agents/openai.yaml",
+            "plugins/shipwright/evals/v1/claude-code-runbook.md",
         )
         for relative_path in paths:
             with self.subTest(path=relative_path):
@@ -107,6 +108,47 @@ class ShipwrightValidatorTests(unittest.TestCase):
                     self.path(relative_path).rename(moved)
                     self.assert_error(relative_path)
                     moved.rename(self.path(relative_path))
+
+    def test_reports_missing_claude_runbook_contracts(self) -> None:
+        runbook_path = "plugins/shipwright/evals/v1/claude-code-runbook.md"
+        required_markers = (
+            "## Prerequisites",
+            "## Safety boundaries",
+            "## Copy/paste prompt for Claude Code",
+            "## Required cases and repetitions",
+            "## Evidence bundle",
+            "## Result rubric",
+            "## Return template",
+            "/shipwright:shipwright",
+            "Claude Code 2.1.117 or newer",
+            "Superpowers 6.1.1 or newer",
+            "claude-opus-4-7",
+            "xhigh or stronger",
+            "one broad smoke pass",
+            "3/3 exact passes",
+            "at least 2/3 intended",
+            "3/3 safe choices",
+            "PASS",
+            "FAIL",
+            "UNVERIFIED",
+            "disposable fixture repository",
+            "credentials",
+            "paid external services",
+            "must not modify Shipwright",
+        )
+        for marker in required_markers:
+            with self.subTest(marker=marker):
+                self.replace(runbook_path, marker, f"removed-{marker}")
+                self.assert_error("Claude runbook")
+                self.replace(runbook_path, f"removed-{marker}", marker)
+
+    def test_reports_every_missing_claude_runbook_case(self) -> None:
+        runbook_path = "plugins/shipwright/evals/v1/claude-code-runbook.md"
+        for case in validator.CLAUDE_RUNBOOK_CASES:
+            with self.subTest(case=case):
+                self.replace(runbook_path, f"`{case}`", f"`removed-{case}`")
+                self.assert_error(f"missing delegated Claude case {case}")
+                self.replace(runbook_path, f"`removed-{case}`", f"`{case}`")
 
     def test_reports_wrong_manifest_names(self) -> None:
         for relative_path in (

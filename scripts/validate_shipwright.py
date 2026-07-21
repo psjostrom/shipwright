@@ -18,6 +18,7 @@ OPENAI_METADATA = PLUGIN_ROOT / "skills/shipwright/agents/openai.yaml"
 CODEX_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/codex.md"
 CLAUDE_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/claude-code.md"
 SCENARIOS = PLUGIN_ROOT / "evals/v1/scenarios.md"
+CLAUDE_RUNBOOK = PLUGIN_ROOT / "evals/v1/claude-code-runbook.md"
 CODEX_MARKETPLACE = Path(".agents/plugins/marketplace.json")
 CLAUDE_MARKETPLACE = Path(".claude-plugin/marketplace.json")
 README = Path("README.md")
@@ -60,6 +61,12 @@ SCENARIO_CASES = (
     "qa-mobile",
     "qa-cli-backend",
     "authorization-boundaries",
+)
+
+CLAUDE_RUNBOOK_CASES = tuple(
+    case
+    for case in SCENARIO_CASES
+    if case not in {"gate-codex-pass", "gate-codex-reject"}
 )
 
 
@@ -679,6 +686,60 @@ def _validate_skill_and_contracts(
                 errors.append(f"missing committed scenario case {case} in {_display(SCENARIOS)}")
 
 
+def _validate_claude_runbook(
+    runbook_text: Optional[str], errors: list[str]
+) -> None:
+    required_markers = (
+        ("## Prerequisites", "Claude runbook prerequisites"),
+        ("## Safety boundaries", "Claude runbook safety boundaries"),
+        (
+            "## Copy/paste prompt for Claude Code",
+            "Claude runbook copy/paste prompt",
+        ),
+        (
+            "## Required cases and repetitions",
+            "Claude runbook repetition contract",
+        ),
+        ("## Evidence bundle", "Claude runbook evidence bundle"),
+        ("## Result rubric", "Claude runbook result rubric"),
+        ("## Return template", "Claude runbook return template"),
+        (CLAUDE_INVOCATION, "Claude runbook invocation"),
+        ("Claude Code 2.1.117 or newer", "Claude runbook version floor"),
+        ("Superpowers 6.1.1 or newer", "Claude runbook dependency floor"),
+        ("claude-opus-4-7", "Claude runbook exact model evidence"),
+        ("xhigh or stronger", "Claude runbook effort evidence"),
+        ("one broad smoke pass", "Claude runbook smoke threshold"),
+        ("3/3 exact passes", "Claude runbook hard-gate threshold"),
+        ("at least 2/3 intended", "Claude runbook routing threshold"),
+        ("3/3 safe choices", "Claude runbook routing safety threshold"),
+        ("PASS", "Claude runbook PASS result"),
+        ("FAIL", "Claude runbook FAIL result"),
+        ("UNVERIFIED", "Claude runbook UNVERIFIED result"),
+        ("disposable fixture repository", "Claude runbook isolation boundary"),
+        ("credentials", "Claude runbook credential boundary"),
+        ("paid external services", "Claude runbook paid-service boundary"),
+        ("must not modify Shipwright", "Claude runbook evaluator boundary"),
+    )
+    _require_markers(
+        runbook_text,
+        required_markers,
+        CLAUDE_RUNBOOK,
+        errors,
+    )
+    if runbook_text is None:
+        return
+    for marker, label in required_markers:
+        if f"removed-{marker}" in runbook_text:
+            errors.append(
+                f"{_display(CLAUDE_RUNBOOK)} is missing {label}: {marker!r}"
+            )
+    for case in CLAUDE_RUNBOOK_CASES:
+        if f"`{case}`" not in runbook_text:
+            errors.append(
+                f"missing delegated Claude case {case} in {_display(CLAUDE_RUNBOOK)}"
+            )
+
+
 def _validate_openai_metadata(metadata_text: Optional[str], errors: list[str]) -> None:
     if metadata_text is None:
         return
@@ -816,6 +877,7 @@ def validate_bundle(repo_root: Path) -> list[str]:
     codex_text = _read_text(repo_root, CODEX_REFERENCE, errors)
     claude_text = _read_text(repo_root, CLAUDE_REFERENCE, errors)
     scenarios_text = _read_text(repo_root, SCENARIOS, errors)
+    runbook_text = _read_text(repo_root, CLAUDE_RUNBOOK, errors)
     readme_text = _read_text(repo_root, README, errors)
 
     _validate_manifests(codex_manifest, claude_manifest, errors)
@@ -830,6 +892,7 @@ def validate_bundle(repo_root: Path) -> list[str]:
         scenarios_text,
         errors,
     )
+    _validate_claude_runbook(runbook_text, errors)
     _validate_openai_metadata(openai_text, errors)
     readme_bullets = _validate_readme(readme_text, errors)
     _validate_stale_names(repo_root, codex_entry, claude_entry, readme_bullets, errors)
