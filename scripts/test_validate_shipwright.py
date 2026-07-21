@@ -148,14 +148,28 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "printf 'evidence_dir=%s\\n' \"$evidence_dir\" >> \"$environment_seed\"",
             "Read evaluation-input/environment-seed.md along with",
             "Failure to create or read environment-seed.md makes the evaluation `UNVERIFIED`.",
+            "shipwright_prepare_claude_evaluation() {",
+            "SUPERPOWERS_PLUGIN_DIR",
+            "CLAUDE_CODE_OAUTH_TOKEN",
+            "ANTHROPIC_API_KEY",
+            "env -i",
+            'HOME="$isolated_home"',
+            'XDG_CONFIG_HOME="$isolated_xdg_config"',
+            'XDG_CACHE_HOME="$isolated_xdg_cache"',
+            'CLAUDE_CONFIG_DIR="$isolated_claude_config"',
+            "--setting-sources project",
+            '--plugin-dir "$superpowers_plugin_dir"',
+            "If Claude Code is below 2.1.117, stop and mark the evaluation `UNVERIFIED`.",
+            "If Superpowers is below 6.1.1, stop and mark the evaluation `UNVERIFIED`.",
+            "Stop and report UNVERIFIED if Claude Code is below 2.1.117, Superpowers is below 6.1.1",
+            "Accept compatible newer Claude Code and Superpowers versions.",
+            "below-minimum Claude Code or Superpowers version",
             ".git/info/exclude",
             'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
-            'if ! git -C "$fixture_root" check-ignore -q "$evidence_dir"; then',
-            "evidence_dir is not ignored; mark the evaluation UNVERIFIED and stop",
-            'claude --plugin-dir "$shipwright_checkout/plugins/shipwright"',
+            '--plugin-dir "$shipwright_checkout/plugins/shipwright"',
             'cd "$fixture_root"',
             'evidence_dir="$fixture_root/.superpowers/sdd/evals/$run_id"',
-            "copy/setup, ignore verification, or fixture-rooted plugin loading",
+            "Failure of copy/setup, ignore verification, isolated process setup, explicit authentication, or fixture-rooted plugin loading",
         )
         for index, marker in enumerate(required_markers):
             with self.subTest(marker=marker):
@@ -172,41 +186,99 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assert_error(f"missing delegated Claude case {case}")
                 self.replace(runbook_path, f"`removed-{case}`", f"`{case}`")
 
-    def test_rejects_unguarded_or_shell_terminating_claude_launch(self) -> None:
+    def test_requires_each_fixture_setup_operation_to_be_checked_and_tracked(self) -> None:
         runbook_path = "plugins/shipwright/evals/v1/claude-code-runbook.md"
         original = self.path(runbook_path).read_text(encoding="utf-8")
-        guarded_tail = (
-            "else\n"
-            '  cd "$fixture_root" &&\n'
-            '    claude --plugin-dir "$shipwright_checkout/plugins/shipwright"\n'
-            "fi"
+        checked_steps = (
+            '  shipwright_setup_step="resolve checkout"\n  shipwright_checkout="$(pwd -P)" || return 1',
+            '  shipwright_setup_step="read commit"\n  shipwright_commit="$(git -C "$shipwright_checkout" rev-parse HEAD)" || return 1',
+            '  shipwright_setup_step="read status"\n  shipwright_status="$(git -C "$shipwright_checkout" status --short)" || return 1',
+            '  shipwright_setup_step="create fixture"\n  fixture_root="$(mktemp -d)" || return 1',
+            '  shipwright_setup_step="initialize fixture repository"\n  git -C "$fixture_root" init >/dev/null || return 1',
+            '  shipwright_setup_step="create evaluation input directory"\n  mkdir -p "$fixture_root/evaluation-input" || return 1',
+            '  shipwright_setup_step="copy runbook"\n  cp "$shipwright_checkout/plugins/shipwright/evals/v1/claude-code-runbook.md" \\\n    "$fixture_root/evaluation-input/claude-code-runbook.md" || return 1',
+            '  shipwright_setup_step="copy scenarios"\n  cp "$shipwright_checkout/plugins/shipwright/evals/v1/scenarios.md" \\\n    "$fixture_root/evaluation-input/scenarios.md" || return 1',
+            '  shipwright_setup_step="exclude evidence"\n  printf \'%s\\n\' \'.superpowers/\' >> "$fixture_root/.git/info/exclude" || return 1',
+            '  shipwright_setup_step="create evidence directories"\n  mkdir -p "$evidence_dir" "$isolated_home" "$isolated_xdg_config" \\\n    "$isolated_xdg_cache" "$isolated_claude_config" "$isolated_tmp" || return 1',
+            '  shipwright_setup_step="write commit seed"\n  printf \'shipwright_commit=%s\\n\' "$shipwright_commit" > "$environment_seed" || return 1',
+            '  shipwright_setup_step="write status seed"\n  printf \'shipwright_status=%s\\n\' "$shipwright_status" >> "$environment_seed" || return 1',
+            '  shipwright_setup_step="write plugin seed"\n  printf \'shipwright_plugin_source=%s\\n\' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1',
+            '  shipwright_setup_step="write evidence seed"\n  printf \'evidence_dir=%s\\n\' "$evidence_dir" >> "$environment_seed" || return 1',
+            '  shipwright_setup_step="verify evidence exclusion"\n  git -C "$fixture_root" check-ignore -q "$evidence_dir" || return 1',
         )
-        failure_line = (
-            "  printf '%s\\n' \"evidence_dir is not ignored; mark the evaluation "
-            "UNVERIFIED and stop\" >&2\n"
+        for marker in checked_steps:
+            with self.subTest(step=marker.splitlines()[0]):
+                self.assertIn(marker, original)
+                unguarded = marker.replace(" || return 1", "")
+                self.path(runbook_path).write_text(
+                    original.replace(marker, unguarded, 1), encoding="utf-8"
+                )
+                self.assert_error("checked setup")
+        self.path(runbook_path).write_text(original, encoding="utf-8")
+
+    def test_rejects_unisolated_ambiguous_or_shell_terminating_claude_launch(self) -> None:
+        runbook_path = "plugins/shipwright/evals/v1/claude-code-runbook.md"
+        original = self.path(runbook_path).read_text(encoding="utf-8")
+        isolated_launch = (
+            "elif ! env -i \\\n"
+            '  HOME="$isolated_home" \\\n'
+            '  XDG_CONFIG_HOME="$isolated_xdg_config" \\\n'
+            '  XDG_CACHE_HOME="$isolated_xdg_cache" \\\n'
+            '  CLAUDE_CONFIG_DIR="$isolated_claude_config" \\\n'
+            '  CLAUDE_CODE_TMPDIR="$isolated_tmp" \\\n'
+            "  DISABLE_AUTOUPDATER=1 \\\n"
+            "  CLAUDE_CODE_AUTO_CONNECT_IDE=false \\\n"
+            '  PATH="$PATH" \\\n'
+            '  SHELL="${SHELL:-/bin/sh}" \\\n'
+            '  TERM="${TERM:-xterm-256color}" \\\n'
+            '  LANG="${LANG:-C}" \\\n'
+            '  "$claude_auth_name=$claude_auth_value" \\\n'
+            '  "$claude_bin" \\\n'
+            "    --setting-sources project \\\n"
+            '    --plugin-dir "$shipwright_checkout/plugins/shipwright" \\\n'
+            '    --plugin-dir "$superpowers_plugin_dir"; then'
         )
+        self.assertIn(isolated_launch, original)
         mutations = {
-            "launch after guard": original.replace(
-                guarded_tail,
-                "else\n"
-                "  :\n"
-                "fi\n"
-                'cd "$fixture_root"\n'
-                'claude --plugin-dir "$shipwright_checkout/plugins/shipwright"',
+            "inherited environment": isolated_launch.replace("env -i", "env", 1),
+            "host home": isolated_launch.replace('  HOME="$isolated_home" \\\n', "", 1),
+            "host XDG config": isolated_launch.replace(
+                '  XDG_CONFIG_HOME="$isolated_xdg_config" \\\n', "", 1
+            ),
+            "host XDG cache": isolated_launch.replace(
+                '  XDG_CACHE_HOME="$isolated_xdg_cache" \\\n', "", 1
+            ),
+            "ambiguous auth": isolated_launch.replace(
+                '  "$claude_auth_name=$claude_auth_value" \\\n',
+                '  CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \\\n'
+                '  ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \\\n',
                 1,
             ),
-            "exit interactive shell": original.replace(
-                failure_line, failure_line + "  exit 1\n", 1
+            "host settings": isolated_launch.replace(
+                "    --setting-sources project \\\n", "", 1
             ),
-            "return from sourced shell": original.replace(
-                failure_line, failure_line + "  return 1\n", 1
+            "missing Superpowers": isolated_launch.replace(
+                ' \\\n    --plugin-dir "$superpowers_plugin_dir"', "", 1
             ),
         }
-        for label, content in mutations.items():
+        for label, replacement in mutations.items():
             with self.subTest(case=label):
-                self.assertNotEqual(original, content)
-                self.path(runbook_path).write_text(content, encoding="utf-8")
-                self.assert_error("guarded launch")
+                self.assertNotEqual(isolated_launch, replacement)
+                self.path(runbook_path).write_text(
+                    original.replace(isolated_launch, replacement, 1),
+                    encoding="utf-8",
+                )
+                self.assert_error("isolated launch")
+
+        self.path(runbook_path).write_text(
+            original.replace(
+                '  printf \'%s\\n\' "Shipwright Claude setup failed',
+                '  exit 1\n  printf \'%s\\n\' "Shipwright Claude setup failed',
+                1,
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error("interactive-shell safety")
         self.path(runbook_path).write_text(original, encoding="utf-8")
 
     def test_reports_wrong_manifest_names(self) -> None:
@@ -749,13 +821,15 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
     def test_reports_stale_public_name_and_profile_dependency(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        path = self.path(skill)
+        original = path.read_text(encoding="utf-8")
         for stale in ("$" + "full-dev", "full-dev" + "-implementer"):
             with self.subTest(stale=stale):
-                path = self.path(skill)
-                original = path.read_text(encoding="utf-8")
-                path.write_text(original + f"\n{stale}\n", encoding="utf-8")
-                self.assert_error("stale public name/profile dependency")
-                path.write_text(original, encoding="utf-8")
+                try:
+                    path.write_text(original + f"\n{stale}\n", encoding="utf-8")
+                    self.assert_error("stale public name/profile dependency")
+                finally:
+                    path.write_text(original, encoding="utf-8")
 
     def test_stale_scan_covers_all_scoped_surfaces_and_legacy_forms(self) -> None:
         stale_forms = ("$" + "full-dev", "/" + "full-dev", "full-dev" + "-worker")

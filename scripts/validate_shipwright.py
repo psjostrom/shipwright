@@ -40,14 +40,41 @@ DEFAULT_PROMPT = (
     "Use $shipwright:shipwright to build this feature end to end with independent "
     "review and real verification."
 )
-CLAUDE_GUARDED_LAUNCH = (
-    'if ! git -C "$fixture_root" check-ignore -q "$evidence_dir"; then\n'
-    "  printf '%s\\n' \"evidence_dir is not ignored; mark the evaluation "
-    "UNVERIFIED and stop\" >&2\n"
-    "else\n"
-    '  cd "$fixture_root" &&\n'
-    '    claude --plugin-dir "$shipwright_checkout/plugins/shipwright"\n'
-    "fi"
+CLAUDE_CHECKED_SETUP = (
+    '  shipwright_setup_step="resolve checkout"\n  shipwright_checkout="$(pwd -P)" || return 1',
+    '  shipwright_setup_step="read commit"\n  shipwright_commit="$(git -C "$shipwright_checkout" rev-parse HEAD)" || return 1',
+    '  shipwright_setup_step="read status"\n  shipwright_status="$(git -C "$shipwright_checkout" status --short)" || return 1',
+    '  shipwright_setup_step="create fixture"\n  fixture_root="$(mktemp -d)" || return 1',
+    '  shipwright_setup_step="initialize fixture repository"\n  git -C "$fixture_root" init >/dev/null || return 1',
+    '  shipwright_setup_step="create evaluation input directory"\n  mkdir -p "$fixture_root/evaluation-input" || return 1',
+    '  shipwright_setup_step="copy runbook"\n  cp "$shipwright_checkout/plugins/shipwright/evals/v1/claude-code-runbook.md" \\\n    "$fixture_root/evaluation-input/claude-code-runbook.md" || return 1',
+    '  shipwright_setup_step="copy scenarios"\n  cp "$shipwright_checkout/plugins/shipwright/evals/v1/scenarios.md" \\\n    "$fixture_root/evaluation-input/scenarios.md" || return 1',
+    '  shipwright_setup_step="exclude evidence"\n  printf \'%s\\n\' \'.superpowers/\' >> "$fixture_root/.git/info/exclude" || return 1',
+    '  shipwright_setup_step="create evidence directories"\n  mkdir -p "$evidence_dir" "$isolated_home" "$isolated_xdg_config" \\\n    "$isolated_xdg_cache" "$isolated_claude_config" "$isolated_tmp" || return 1',
+    '  shipwright_setup_step="write commit seed"\n  printf \'shipwright_commit=%s\\n\' "$shipwright_commit" > "$environment_seed" || return 1',
+    '  shipwright_setup_step="write status seed"\n  printf \'shipwright_status=%s\\n\' "$shipwright_status" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write plugin seed"\n  printf \'shipwright_plugin_source=%s\\n\' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write evidence seed"\n  printf \'evidence_dir=%s\\n\' "$evidence_dir" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="verify evidence exclusion"\n  git -C "$fixture_root" check-ignore -q "$evidence_dir" || return 1',
+)
+CLAUDE_ISOLATED_LAUNCH = (
+    "elif ! env -i \\\n"
+    '  HOME="$isolated_home" \\\n'
+    '  XDG_CONFIG_HOME="$isolated_xdg_config" \\\n'
+    '  XDG_CACHE_HOME="$isolated_xdg_cache" \\\n'
+    '  CLAUDE_CONFIG_DIR="$isolated_claude_config" \\\n'
+    '  CLAUDE_CODE_TMPDIR="$isolated_tmp" \\\n'
+    "  DISABLE_AUTOUPDATER=1 \\\n"
+    "  CLAUDE_CODE_AUTO_CONNECT_IDE=false \\\n"
+    '  PATH="$PATH" \\\n'
+    '  SHELL="${SHELL:-/bin/sh}" \\\n'
+    '  TERM="${TERM:-xterm-256color}" \\\n'
+    '  LANG="${LANG:-C}" \\\n'
+    '  "$claude_auth_name=$claude_auth_value" \\\n'
+    '  "$claude_bin" \\\n'
+    "    --setting-sources project \\\n"
+    '    --plugin-dir "$shipwright_checkout/plugins/shipwright" \\\n'
+    '    --plugin-dir "$superpowers_plugin_dir"; then'
 )
 
 SCENARIO_CASES = (
@@ -811,22 +838,57 @@ def _validate_claude_runbook(
             "Failure to create or read environment-seed.md makes the evaluation `UNVERIFIED`.",
             "Claude runbook unverifiable environment seed",
         ),
+        ("shipwright_prepare_claude_evaluation() {", "Claude runbook setup gate"),
+        ("SUPERPOWERS_PLUGIN_DIR", "Claude runbook explicit Superpowers root"),
+        ("CLAUDE_CODE_OAUTH_TOKEN", "Claude runbook subscription authentication"),
+        ("ANTHROPIC_API_KEY", "Claude runbook API authentication"),
+        ("env -i", "Claude runbook clean process environment"),
+        ('HOME="$isolated_home"', "Claude runbook isolated HOME"),
+        (
+            'XDG_CONFIG_HOME="$isolated_xdg_config"',
+            "Claude runbook isolated XDG configuration",
+        ),
+        (
+            'XDG_CACHE_HOME="$isolated_xdg_cache"',
+            "Claude runbook isolated XDG cache",
+        ),
+        (
+            'CLAUDE_CONFIG_DIR="$isolated_claude_config"',
+            "Claude runbook isolated Claude configuration",
+        ),
+        ("--setting-sources project", "Claude runbook restricted setting sources"),
+        (
+            '--plugin-dir "$superpowers_plugin_dir"',
+            "Claude runbook explicit Superpowers loading",
+        ),
+        (
+            "If Claude Code is below 2.1.117, stop and mark the evaluation `UNVERIFIED`.",
+            "Claude runbook below-minimum runtime stop",
+        ),
+        (
+            "If Superpowers is below 6.1.1, stop and mark the evaluation `UNVERIFIED`.",
+            "Claude runbook below-minimum dependency stop",
+        ),
+        (
+            "Stop and report UNVERIFIED if Claude Code is below 2.1.117, Superpowers is below 6.1.1",
+            "Claude runbook prompt version stop",
+        ),
+        (
+            "Accept compatible newer Claude Code and Superpowers versions.",
+            "Claude runbook prompt compatible-newer policy",
+        ),
+        (
+            "below-minimum Claude Code or Superpowers version",
+            "Claude runbook below-minimum UNVERIFIED rubric",
+        ),
         (".git/info/exclude", "Claude runbook fixture ignore contract"),
         (
             'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
             "Claude runbook fixture evidence ignore verification",
         ),
+        (CLAUDE_ISOLATED_LAUNCH, "Claude runbook isolated launch"),
         (
-            'if ! git -C "$fixture_root" check-ignore -q "$evidence_dir"; then',
-            "Claude runbook guarded ignore verification",
-        ),
-        (
-            "evidence_dir is not ignored; mark the evaluation UNVERIFIED and stop",
-            "Claude runbook ignore-verification failure path",
-        ),
-        (CLAUDE_GUARDED_LAUNCH, "Claude runbook guarded launch"),
-        (
-            'claude --plugin-dir "$shipwright_checkout/plugins/shipwright"',
+            '--plugin-dir "$shipwright_checkout/plugins/shipwright"',
             "Claude runbook fixture-rooted plugin loading",
         ),
         ('cd "$fixture_root"', "Claude runbook fixture-rooted workspace"),
@@ -835,9 +897,13 @@ def _validate_claude_runbook(
             "Claude runbook fixture-local evidence destination",
         ),
         (
-            "copy/setup, ignore verification, or fixture-rooted plugin loading",
+            "Failure of copy/setup, ignore verification, isolated process setup, explicit authentication, or fixture-rooted plugin loading",
             "Claude runbook unverifiable fixture setup",
         ),
+    )
+    required_markers += tuple(
+        (marker, f"Claude runbook checked setup operation {index}")
+        for index, marker in enumerate(CLAUDE_CHECKED_SETUP, start=1)
     )
     _require_markers(
         runbook_text,
@@ -847,6 +913,10 @@ def _validate_claude_runbook(
     )
     if runbook_text is None:
         return
+    if re.search(r"(?m)^ {0,3}exit(?:\s|$)", runbook_text):
+        errors.append(
+            f"{_display(CLAUDE_RUNBOOK)} violates interactive-shell safety with an exit command"
+        )
     for case in CLAUDE_RUNBOOK_CASES:
         if f"`{case}`" not in runbook_text:
             errors.append(
