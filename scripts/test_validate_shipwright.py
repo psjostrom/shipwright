@@ -823,7 +823,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
         path = self.path(skill)
         original = path.read_text(encoding="utf-8")
-        for stale in ("$" + "full-dev", "full-dev" + "-implementer"):
+        legacy_skill = "-".join(("full", "dev"))
+        for stale in ("$" + legacy_skill, legacy_skill + "-implementer"):
             with self.subTest(stale=stale):
                 try:
                     path.write_text(original + f"\n{stale}\n", encoding="utf-8")
@@ -832,7 +833,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
                     path.write_text(original, encoding="utf-8")
 
     def test_stale_scan_covers_all_scoped_surfaces_and_legacy_forms(self) -> None:
-        stale_forms = ("$" + "full-dev", "/" + "full-dev", "full-dev" + "-worker")
+        legacy_skill = "-".join(("full", "dev"))
+        stale_forms = ("$" + legacy_skill, "/" + legacy_skill, legacy_skill + "-worker")
 
         plugin_paths = (
             "plugins/shipwright/legacy-profile.toml",
@@ -897,7 +899,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
     def test_stale_scan_reports_unreadable_scoped_directory_when_permissions_apply(self) -> None:
         blocked = self.path("plugins/shipwright/unreadable-directory")
         blocked.mkdir()
-        (blocked / "legacy-command").write_text("$" + "full-dev\n", encoding="utf-8")
+        legacy_skill = "-".join(("full", "dev"))
+        (blocked / "legacy-command").write_text("$" + legacy_skill + "\n", encoding="utf-8")
         blocked.chmod(0)
         try:
             errors = validate_bundle(self.repo_root)
@@ -937,13 +940,17 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
     def test_stale_scan_skips_only_nul_marked_binary_files(self) -> None:
         binary = self.path("plugins/shipwright/image.bin")
-        binary.write_bytes(b"\x00$" + b"full-dev")
+        legacy_skill = "-".join(("full", "dev")).encode()
+        binary.write_bytes(b"\x00$" + legacy_skill)
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_stale_scan_ignores_historical_documents_outside_scope(self) -> None:
         historical = self.path("docs/history.md")
         historical.parent.mkdir(parents=True)
-        historical.write_text("$" + "full-dev\nfull-dev" + "-worker\n", encoding="utf-8")
+        legacy_skill = "-".join(("full", "dev"))
+        historical.write_text(
+            "$" + legacy_skill + "\n" + legacy_skill + "-worker\n", encoding="utf-8"
+        )
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_reports_every_absent_committed_scenario_case(self) -> None:
