@@ -13,14 +13,18 @@ from typing import Any, Optional
 PLUGIN_ROOT = Path("plugins/shipwright")
 CODEX_MANIFEST = PLUGIN_ROOT / ".codex-plugin/plugin.json"
 CLAUDE_MANIFEST = PLUGIN_ROOT / ".claude-plugin/plugin.json"
+CURSOR_MANIFEST = PLUGIN_ROOT / ".cursor-plugin/plugin.json"
 SKILL = PLUGIN_ROOT / "skills/shipwright/SKILL.md"
 OPENAI_METADATA = PLUGIN_ROOT / "skills/shipwright/agents/openai.yaml"
 CODEX_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/codex.md"
 CLAUDE_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/claude-code.md"
+CURSOR_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/cursor.md"
 SCENARIOS = PLUGIN_ROOT / "evals/v1/scenarios.md"
 CLAUDE_RUNBOOK = PLUGIN_ROOT / "evals/v1/claude-code-runbook.md"
+CURSOR_RUNBOOK = PLUGIN_ROOT / "evals/v1/cursor-runbook.md"
 CODEX_MARKETPLACE = Path(".agents/plugins/marketplace.json")
 CLAUDE_MARKETPLACE = Path(".claude-plugin/marketplace.json")
+CURSOR_MARKETPLACE = Path(".cursor-plugin/marketplace.json")
 README = Path("README.md")
 
 DESCRIPTION = (
@@ -36,6 +40,13 @@ SKILL_DESCRIPTION = (
 KEYWORDS = ["development", "subagents", "code-review", "verification", "qa"]
 CODEX_INVOCATION = "$shipwright:shipwright"
 CLAUDE_INVOCATION = "/shipwright:shipwright"
+CURSOR_INVOCATION = "/shipwright"
+CURSOR_INVOCATION_DOC = "`/shipwright` in Cursor"
+# Accept `/shipwright` or bare /shipwright as a slash-command, not path segments
+# like .../plugins/shipwright/... and not Claude's /shipwright:shipwright.
+_CURSOR_BARE_INVOCATION_RE = re.compile(
+    r"(?:`/shipwright`|(?<![/\w])/shipwright(?![/\w:]))"
+)
 DEFAULT_PROMPT = (
     "Use $shipwright:shipwright to build this feature end to end with independent "
     "review and real verification."
@@ -82,6 +93,8 @@ SCENARIO_CASES = (
     "gate-codex-reject",
     "gate-claude-pass",
     "gate-claude-reject",
+    "gate-cursor-pass",
+    "gate-cursor-reject",
     "dependency-preflight",
     "dependency-incompatible",
     "trivial-reduction",
@@ -102,8 +115,53 @@ SCENARIO_CASES = (
 CLAUDE_RUNBOOK_CASES = tuple(
     case
     for case in SCENARIO_CASES
-    if case not in {"gate-codex-pass", "gate-codex-reject"}
+    if case
+    not in {
+        "gate-codex-pass",
+        "gate-codex-reject",
+        "gate-cursor-pass",
+        "gate-cursor-reject",
+    }
 )
+
+CURSOR_RUNBOOK_CASES = tuple(
+    case
+    for case in SCENARIO_CASES
+    if case
+    not in {
+        "gate-codex-pass",
+        "gate-codex-reject",
+        "gate-claude-pass",
+        "gate-claude-reject",
+    }
+)
+
+CURSOR_CHECKED_SETUP = (
+    '  shipwright_setup_step="resolve checkout"\n  shipwright_checkout="$(pwd -P)" || return 1',
+    '  shipwright_setup_step="read commit"\n  shipwright_commit="$(git -C "$shipwright_checkout" rev-parse HEAD)" || return 1',
+    '  shipwright_setup_step="read status"\n  shipwright_status="$(git -C "$shipwright_checkout" status --short)" || return 1',
+    '  shipwright_setup_step="resolve Superpowers plugin root"\n  superpowers_plugin_dir="${SUPERPOWERS_PLUGIN_DIR:-}"\n  [ -d "$superpowers_plugin_dir" ] || return 1',
+    '  shipwright_setup_step="create fixture"\n  fixture_root="$(mktemp -d)" || return 1',
+    '  shipwright_setup_step="initialize fixture repository"\n  git -C "$fixture_root" init >/dev/null || return 1',
+    '  shipwright_setup_step="create evaluation input directory"\n  mkdir -p "$fixture_root/evaluation-input" || return 1',
+    '  shipwright_setup_step="copy runbook"\n  cp "$shipwright_checkout/plugins/shipwright/evals/v1/cursor-runbook.md" \\\n    "$fixture_root/evaluation-input/cursor-runbook.md" || return 1',
+    '  shipwright_setup_step="copy scenarios"\n  cp "$shipwright_checkout/plugins/shipwright/evals/v1/scenarios.md" \\\n    "$fixture_root/evaluation-input/scenarios.md" || return 1',
+    '  shipwright_setup_step="exclude evidence"\n  printf \'%s\\n\' \'.superpowers/\' >> "$fixture_root/.git/info/exclude" || return 1',
+    '  shipwright_setup_step="create evidence directories"\n  mkdir -p "$evidence_dir" || return 1',
+    '  shipwright_setup_step="stage fixture-local Cursor plugin path"\n  cursor_plugins_local="$fixture_root/.cursor/plugins/local"\n  mkdir -p "$cursor_plugins_local" || return 1\n  ln -sfn "$shipwright_checkout/plugins/shipwright" "$cursor_plugins_local/shipwright" || return 1',
+    '  shipwright_setup_step="write commit seed"\n  printf \'shipwright_commit=%s\\n\' "$shipwright_commit" > "$environment_seed" || return 1',
+    '  shipwright_setup_step="write status seed"\n  printf \'shipwright_status=%s\\n\' "$shipwright_status" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write plugin seed"\n  printf \'shipwright_plugin_source=%s\\n\' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write cursor plugins seed"\n  printf \'cursor_plugins_local=%s\\n\' "$cursor_plugins_local" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write evidence seed"\n  printf \'evidence_dir=%s\\n\' "$evidence_dir" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="verify evidence exclusion"\n  git -C "$fixture_root" check-ignore -q "$evidence_dir" || return 1',
+)
+
+
+def _has_cursor_invocation(text: str) -> bool:
+    """True when text contains bare /shipwright, not only /shipwright:shipwright."""
+
+    return _CURSOR_BARE_INVOCATION_RE.search(text) is not None
 
 
 def _display(path: Path) -> str:
@@ -168,7 +226,9 @@ def _valid_codex_version(value: Any) -> bool:
     )
 
 
-def _validate_manifests(codex: Any, claude: Any, errors: list[str]) -> None:
+def _validate_manifests(
+    codex: Any, claude: Any, cursor: Any, errors: list[str]
+) -> None:
     if isinstance(codex, dict):
         _require_equal(codex, ("name",), "shipwright", "Codex manifest name", CODEX_MANIFEST, errors)
         if not _valid_codex_version(codex.get("version")):
@@ -235,6 +295,39 @@ def _validate_manifests(codex: Any, claude: Any, errors: list[str]) -> None:
     elif claude is not None:
         errors.append(f"{_display(CLAUDE_MANIFEST)}: Claude manifest root must be a JSON object")
 
+    if isinstance(cursor, dict):
+        _require_equal(cursor, ("name",), "shipwright", "Cursor manifest name", CURSOR_MANIFEST, errors)
+        if cursor.get("version") != "1.0.0":
+            errors.append(
+                f"{_display(CURSOR_MANIFEST)}: Cursor manifest version must be exactly '1.0.0'; "
+                f"found {cursor.get('version')!r}"
+            )
+        _require_equal(
+            cursor, ("displayName",), "Shipwright", "Cursor manifest displayName", CURSOR_MANIFEST, errors
+        )
+        _require_equal(cursor, ("description",), DESCRIPTION, "Cursor manifest description", CURSOR_MANIFEST, errors)
+        _require_equal(cursor, ("author", "name"), "psjostrom", "Cursor manifest author.name", CURSOR_MANIFEST, errors)
+        _require_equal(
+            cursor,
+            ("author", "url"),
+            "https://github.com/psjostrom",
+            "Cursor manifest author.url",
+            CURSOR_MANIFEST,
+            errors,
+        )
+        _require_equal(
+            cursor,
+            ("repository",),
+            "https://github.com/psjostrom/agent-plugins",
+            "Cursor manifest repository",
+            CURSOR_MANIFEST,
+            errors,
+        )
+        _require_equal(cursor, ("keywords",), KEYWORDS, "Cursor manifest keywords", CURSOR_MANIFEST, errors)
+        _require_equal(cursor, ("skills",), "./skills/", "Cursor manifest skills path", CURSOR_MANIFEST, errors)
+    elif cursor is not None:
+        errors.append(f"{_display(CURSOR_MANIFEST)}: Cursor manifest root must be a JSON object")
+
 
 def _marketplace_entry(
     catalog: Any, label: str, source_path: Path, errors: list[str]
@@ -260,10 +353,11 @@ def _marketplace_entry(
 
 
 def _validate_marketplaces(
-    codex_catalog: Any, claude_catalog: Any, errors: list[str]
-) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    codex_catalog: Any, claude_catalog: Any, cursor_catalog: Any, errors: list[str]
+) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]], Optional[dict[str, Any]]]:
     codex = _marketplace_entry(codex_catalog, "Codex", CODEX_MARKETPLACE, errors)
     claude = _marketplace_entry(claude_catalog, "Claude", CLAUDE_MARKETPLACE, errors)
+    cursor = _marketplace_entry(cursor_catalog, "Cursor", CURSOR_MARKETPLACE, errors)
     if codex is not None:
         _require_equal(codex, ("name",), "shipwright", "Codex marketplace name", CODEX_MARKETPLACE, errors)
         _require_equal(codex, ("source", "source"), "local", "Codex marketplace source.source", CODEX_MARKETPLACE, errors)
@@ -318,7 +412,33 @@ def _validate_marketplaces(
             CLAUDE_MARKETPLACE,
             errors,
         )
-    return codex, claude
+    if cursor is not None:
+        expectations = {
+            "name": "shipwright",
+            "source": "./plugins/shipwright",
+            "description": DESCRIPTION,
+            "version": "1.0.0",
+            "keywords": KEYWORDS,
+            "category": "development",
+        }
+        for key, expected in expectations.items():
+            _require_equal(
+                cursor,
+                (key,),
+                expected,
+                f"Cursor marketplace {key}",
+                CURSOR_MARKETPLACE,
+                errors,
+            )
+        _require_equal(
+            cursor,
+            ("author", "name"),
+            "psjostrom",
+            "Cursor marketplace author.name",
+            CURSOR_MARKETPLACE,
+            errors,
+        )
+    return codex, claude, cursor
 
 
 def _parse_yaml_scalar(
@@ -601,6 +721,7 @@ def _validate_skill_and_contracts(
     skill_text: Optional[str],
     codex_text: Optional[str],
     claude_text: Optional[str],
+    cursor_text: Optional[str],
     scenarios_text: Optional[str],
     errors: list[str],
 ) -> None:
@@ -635,14 +756,34 @@ def _validate_skill_and_contracts(
                 SKILL,
                 errors,
             )
-            if set(frontmatter) != {"name", "description"}:
+            if set(frontmatter) != {"name", "description", "disable-model-invocation"}:
                 errors.append(
                     f"{_display(SKILL)}: Shipwright SKILL.md frontmatter keys must be "
-                    f"exactly ['description', 'name']; found {sorted(frontmatter)!r}"
+                    "exactly ['description', 'disable-model-invocation', 'name']; "
+                    f"found {sorted(frontmatter)!r}"
                 )
+            _require_equal(
+                frontmatter,
+                ("disable-model-invocation",),
+                True,
+                "Shipwright SKILL.md frontmatter disable-model-invocation",
+                SKILL,
+                errors,
+            )
         if len(skill_text.splitlines()) >= 500:
             errors.append(
                 f"{_display(SKILL)}: Shipwright shared SKILL.md must be fewer than 500 lines"
+            )
+
+    if skill_text is not None:
+        if not _has_cursor_invocation(skill_text):
+            errors.append(
+                f"{_display(SKILL)} is missing Cursor invocation: bare {CURSOR_INVOCATION!r} "
+                f"(not only {CLAUDE_INVOCATION!r})"
+            )
+        if CURSOR_INVOCATION_DOC not in skill_text:
+            errors.append(
+                f"{_display(SKILL)} is missing Cursor invocation docs: {CURSOR_INVOCATION_DOC!r}"
             )
 
     _require_markers(
@@ -654,6 +795,10 @@ def _validate_skill_and_contracts(
             (
                 "[references/claude-code.md](references/claude-code.md)",
                 "reachable Claude reference link",
+            ),
+            (
+                "[references/cursor.md](references/cursor.md)",
+                "reachable Cursor reference link",
             ),
             ("thread/run ID", "child runtime evidence contract"),
             (
@@ -752,6 +897,19 @@ def _validate_skill_and_contracts(
             ("unresolved word `opus`", "Claude controller evidence rejection"),
         ),
         CLAUDE_REFERENCE,
+        errors,
+    )
+    _require_markers(
+        cursor_text,
+        (
+            ("Grok 4.5", "Cursor controller gate Grok 4.5 family"),
+            ("effort rank `high` or stronger", "Cursor controller gate effort"),
+            ("Grok 4.5 / High or stronger", "Cursor controller gate guidance"),
+            ("Composer < Grok", "Cursor worker family order"),
+            ("Task({ subagent_type, prompt, model", "Cursor Task dispatch"),
+            ("Reject Composer as controller", "Cursor controller Composer rejection"),
+        ),
+        CURSOR_REFERENCE,
         errors,
     )
 
@@ -924,6 +1082,161 @@ def _validate_claude_runbook(
             )
 
 
+def _validate_cursor_runbook(
+    runbook_text: Optional[str], errors: list[str]
+) -> None:
+    if runbook_text is not None and not _has_cursor_invocation(runbook_text):
+        errors.append(
+            f"{_display(CURSOR_RUNBOOK)} is missing Cursor runbook invocation: bare "
+            f"{CURSOR_INVOCATION!r} (not only {CLAUDE_INVOCATION!r})"
+        )
+    required_markers = (
+        ("## Prerequisites", "Cursor runbook prerequisites"),
+        ("## Safety boundaries", "Cursor runbook safety boundaries"),
+        (
+            "## Copy/paste prompt for Cursor",
+            "Cursor runbook copy/paste prompt",
+        ),
+        (
+            "## Required cases and repetitions",
+            "Cursor runbook repetition contract",
+        ),
+        ("## Evidence bundle", "Cursor runbook evidence bundle"),
+        ("## Result rubric", "Cursor runbook result rubric"),
+        ("## Return template", "Cursor runbook return template"),
+        ("plugin skill discovery, Task subagents, and current-turn model/effort evidence", "Cursor runbook capability floor"),
+        ("Superpowers 6.1.1 or newer", "Cursor runbook dependency floor"),
+        ("Grok 4.5", "Cursor runbook Grok 4.5 evidence"),
+        ("high or stronger", "Cursor runbook effort evidence"),
+        ("one broad smoke pass", "Cursor runbook smoke threshold"),
+        ("3/3 exact passes", "Cursor runbook hard-gate threshold"),
+        ("at least 2/3 intended", "Cursor runbook routing threshold"),
+        ("3/3 safe choices", "Cursor runbook routing safety threshold"),
+        ("PASS", "Cursor runbook PASS result"),
+        ("FAIL", "Cursor runbook FAIL result"),
+        ("UNVERIFIED", "Cursor runbook UNVERIFIED result"),
+        ("disposable fixture repository", "Cursor runbook isolation boundary"),
+        ("credentials", "Cursor runbook credential boundary"),
+        ("paid external services", "Cursor runbook paid-service boundary"),
+        ("must not modify Shipwright", "Cursor runbook evaluator boundary"),
+        ('shipwright_checkout="$(pwd -P)"', "Cursor runbook checkout capture"),
+        (
+            'shipwright_status="<clean>"',
+            "Cursor runbook explicit clean-status representation",
+        ),
+        ('fixture_root="$(mktemp -d)"', "Cursor runbook fixture creation"),
+        ('git -C "$fixture_root" init', "Cursor runbook fixture repository"),
+        (
+            "evaluation-input/cursor-runbook.md",
+            "Cursor runbook fixture-local runbook input",
+        ),
+        (
+            "evaluation-input/scenarios.md",
+            "Cursor runbook fixture-local scenario input",
+        ),
+        (
+            'environment_seed="$fixture_root/evaluation-input/environment-seed.md"',
+            "Cursor runbook fixture-local environment seed",
+        ),
+        (
+            "printf 'shipwright_commit=%s\\n' \"$shipwright_commit\" > \"$environment_seed\"",
+            "Cursor runbook seeded commit transfer",
+        ),
+        (
+            "printf 'shipwright_status=%s\\n' \"$shipwright_status\" >> \"$environment_seed\"",
+            "Cursor runbook seeded status transfer",
+        ),
+        (
+            "printf 'shipwright_plugin_source=%s\\n' \"$shipwright_checkout/plugins/shipwright\" >> \"$environment_seed\"",
+            "Cursor runbook seeded plugin-source transfer",
+        ),
+        (
+            "printf 'cursor_plugins_local=%s\\n' \"$cursor_plugins_local\" >> \"$environment_seed\"",
+            "Cursor runbook seeded fixture-local plugins transfer",
+        ),
+        (
+            "printf 'evidence_dir=%s\\n' \"$evidence_dir\" >> \"$environment_seed\"",
+            "Cursor runbook seeded evidence-destination transfer",
+        ),
+        (
+            "Read evaluation-input/environment-seed.md along with",
+            "Cursor runbook seeded-identity read contract",
+        ),
+        (
+            "Failure to create or read environment-seed.md makes the evaluation `UNVERIFIED`.",
+            "Cursor runbook unverifiable environment seed",
+        ),
+        ("shipwright_prepare_cursor_evaluation() {", "Cursor runbook setup gate"),
+        ("SUPERPOWERS_PLUGIN_DIR", "Cursor runbook explicit Superpowers root"),
+        (
+            'cursor_plugins_local="$fixture_root/.cursor/plugins/local"',
+            "Cursor runbook fixture-local plugin staging path",
+        ),
+        (
+            'ln -sfn "$shipwright_checkout/plugins/shipwright" "$cursor_plugins_local/shipwright"',
+            "Cursor runbook fixture-local plugin staging symlink",
+        ),
+        (
+            "Do not run install-cursor.sh against the host ~/.cursor/plugins/local during setup",
+            "Cursor runbook host plugin non-mutation",
+        ),
+        (
+            "If Superpowers is below 6.1.1, stop and mark the evaluation `UNVERIFIED`.",
+            "Cursor runbook below-minimum dependency stop",
+        ),
+        (
+            "Stop and report UNVERIFIED if Cursor lacks plugin discovery, Task subagents, or current-turn model evidence, Superpowers is below 6.1.1",
+            "Cursor runbook prompt capability stop",
+        ),
+        (
+            "Accept compatible newer Cursor and Superpowers versions.",
+            "Cursor runbook prompt compatible-newer policy",
+        ),
+        (
+            "below-minimum Superpowers version is active; Cursor lacks plugin discovery",
+            "Cursor runbook below-minimum UNVERIFIED rubric",
+        ),
+        (".git/info/exclude", "Cursor runbook fixture ignore contract"),
+        (
+            'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
+            "Cursor runbook fixture evidence ignore verification",
+        ),
+        (
+            "fixture-local plugin symlink loading route",
+            "Cursor runbook local plugin loading route",
+        ),
+        (
+            'evidence_dir="$fixture_root/.superpowers/sdd/evals/$run_id"',
+            "Cursor runbook fixture-local evidence destination",
+        ),
+        (
+            "Failure of copy/setup, ignore verification, fixture-local plugin staging, or fixture-rooted plugin loading",
+            "Cursor runbook unverifiable fixture setup",
+        ),
+    )
+    required_markers += tuple(
+        (marker, f"Cursor runbook checked setup operation {index}")
+        for index, marker in enumerate(CURSOR_CHECKED_SETUP, start=1)
+    )
+    _require_markers(
+        runbook_text,
+        required_markers,
+        CURSOR_RUNBOOK,
+        errors,
+    )
+    if runbook_text is None:
+        return
+    if re.search(r"(?m)^ {0,3}exit(?:\s|$)", runbook_text):
+        errors.append(
+            f"{_display(CURSOR_RUNBOOK)} violates interactive-shell safety with an exit command"
+        )
+    for case in CURSOR_RUNBOOK_CASES:
+        if f"`{case}`" not in runbook_text:
+            errors.append(
+                f"missing delegated Cursor case {case} in {_display(CURSOR_RUNBOOK)}"
+            )
+
+
 def _validate_openai_metadata(metadata_text: Optional[str], errors: list[str]) -> None:
     if metadata_text is None:
         return
@@ -965,10 +1278,17 @@ def _validate_readme(readme_text: Optional[str], errors: list[str]) -> list[str]
     bullets = [line for line in readme_text.splitlines() if line.startswith("- `shipwright`")]
     if len(bullets) != 1:
         errors.append(f"{_display(README)}: must contain exactly one Shipwright plugin bullet")
-    elif CODEX_INVOCATION not in bullets[0] or CLAUDE_INVOCATION not in bullets[0]:
-        errors.append(
-            f"{_display(README)}: Shipwright bullet must document Codex and Claude invocations"
-        )
+    else:
+        bullet = bullets[0]
+        if CODEX_INVOCATION not in bullet:
+            errors.append(f"{_display(README)}: Shipwright bullet must document Codex invocation")
+        if CLAUDE_INVOCATION not in bullet:
+            errors.append(f"{_display(README)}: Shipwright bullet must document Claude invocation")
+        if not _has_cursor_invocation(bullet) or CURSOR_INVOCATION_DOC not in bullet:
+            errors.append(
+                f"{_display(README)}: Shipwright bullet must document Cursor invocation "
+                f"({CURSOR_INVOCATION_DOC})"
+            )
     return bullets
 
 
@@ -981,6 +1301,7 @@ def _validate_stale_names(
     repo_root: Path,
     codex_entry: Optional[dict[str, Any]],
     claude_entry: Optional[dict[str, Any]],
+    cursor_entry: Optional[dict[str, Any]],
     readme_bullets: list[str],
     errors: list[str],
 ) -> None:
@@ -1033,6 +1354,7 @@ def _validate_stale_names(
     for relative_path, entry in (
         (CODEX_MARKETPLACE, codex_entry),
         (CLAUDE_MARKETPLACE, claude_entry),
+        (CURSOR_MARKETPLACE, cursor_entry),
     ):
         if entry is not None and _contains_stale_name(json.dumps(entry, sort_keys=True)):
             errors.append(
@@ -1053,33 +1375,41 @@ def validate_bundle(repo_root: Path) -> list[str]:
 
     codex_manifest = _load_json(repo_root, CODEX_MANIFEST, errors)
     claude_manifest = _load_json(repo_root, CLAUDE_MANIFEST, errors)
+    cursor_manifest = _load_json(repo_root, CURSOR_MANIFEST, errors)
     codex_catalog = _load_json(repo_root, CODEX_MARKETPLACE, errors)
     claude_catalog = _load_json(repo_root, CLAUDE_MARKETPLACE, errors)
+    cursor_catalog = _load_json(repo_root, CURSOR_MARKETPLACE, errors)
 
     skill_text = _read_text(repo_root, SKILL, errors)
     openai_text = _read_text(repo_root, OPENAI_METADATA, errors)
     codex_text = _read_text(repo_root, CODEX_REFERENCE, errors)
     claude_text = _read_text(repo_root, CLAUDE_REFERENCE, errors)
+    cursor_text = _read_text(repo_root, CURSOR_REFERENCE, errors)
     scenarios_text = _read_text(repo_root, SCENARIOS, errors)
-    runbook_text = _read_text(repo_root, CLAUDE_RUNBOOK, errors)
+    claude_runbook_text = _read_text(repo_root, CLAUDE_RUNBOOK, errors)
+    cursor_runbook_text = _read_text(repo_root, CURSOR_RUNBOOK, errors)
     readme_text = _read_text(repo_root, README, errors)
 
-    _validate_manifests(codex_manifest, claude_manifest, errors)
-    codex_entry, claude_entry = _validate_marketplaces(
-        codex_catalog, claude_catalog, errors
+    _validate_manifests(codex_manifest, claude_manifest, cursor_manifest, errors)
+    codex_entry, claude_entry, cursor_entry = _validate_marketplaces(
+        codex_catalog, claude_catalog, cursor_catalog, errors
     )
     _validate_skill_and_contracts(
         repo_root,
         skill_text,
         codex_text,
         claude_text,
+        cursor_text,
         scenarios_text,
         errors,
     )
-    _validate_claude_runbook(runbook_text, errors)
+    _validate_claude_runbook(claude_runbook_text, errors)
+    _validate_cursor_runbook(cursor_runbook_text, errors)
     _validate_openai_metadata(openai_text, errors)
     readme_bullets = _validate_readme(readme_text, errors)
-    _validate_stale_names(repo_root, codex_entry, claude_entry, readme_bullets, errors)
+    _validate_stale_names(
+        repo_root, codex_entry, claude_entry, cursor_entry, readme_bullets, errors
+    )
 
     return errors
 

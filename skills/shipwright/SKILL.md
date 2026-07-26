@@ -1,13 +1,14 @@
 ---
 name: shipwright
 description: Use when the user explicitly requests Shipwright, full end-to-end development, autonomous implementation with subagents, or implementation plus independent iterative review and real verification; do not use for factual questions, read-only review, diagnosis without a requested fix, or tiny mechanical edits.
+disable-model-invocation: true
 ---
 
 # Shipwright
 
 Orchestrate approved development through bounded implementation, independent review, fresh verification, and applicable real-world QA. The controller owns decisions and evidence; children receive file-based, task-local context.
 
-Invoke as `$shipwright:shipwright` in Codex or `/shipwright:shipwright` in Claude Code.
+Invoke as `$shipwright:shipwright` in Codex, `/shipwright:shipwright` in Claude Code, or `/shipwright` in Cursor.
 
 ## 1. Select the platform and run preflight
 
@@ -15,6 +16,7 @@ Identify the active harness, then read exactly one complete reference:
 
 - Codex: [references/codex.md](references/codex.md)
 - Claude Code: [references/claude-code.md](references/claude-code.md)
+- Cursor: [references/cursor.md](references/cursor.md)
 
 Stop if the harness cannot be identified. Apply its controller gate before writing specifications, plans, branches, ledgers, or implementation artifacts. Configuration, aliases, task labels, filenames, and requested profiles are not current-turn evidence. Conflicting accepted evidence is unverified. After the user changes the model or supplies evidence, restart the complete preflight in the same task.
 

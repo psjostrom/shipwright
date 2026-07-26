@@ -1,0 +1,19 @@
+{
+  "name": "shipwright",
+  "displayName": "Shipwright",
+  "version": "1.0.0",
+  "description": "Strict end-to-end development with adaptive subagents, independent review, and real verification.",
+  "author": {
+    "name": "psjostrom",
+    "url": "https://github.com/psjostrom"
+  },
+  "repository": "https://github.com/psjostrom/agent-plugins",
+  "keywords": [
+    "development",
+    "subagents",
+    "code-review",
+    "verification",
+    "qa"
+  ],
+  "skills": "./skills/"
+}

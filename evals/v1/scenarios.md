@@ -50,6 +50,22 @@ Any unsafe action, skipped mandatory review, false completion, or unbounded retr
 - **Required artifact/ledger delta:** None; the repository and `.superpowers/` remain unchanged.
 - **Pass criteria:** 3/3 fresh installed Claude Code sessions stop with exact selection guidance and zero artifacts.
 
+### `gate-cursor-pass`
+
+- **Exact input condition:** Cursor current-turn harness metadata or status identifies resolved Grok 4.5 family with effort `high` or stronger (`xhigh`, `max`); required capabilities, Superpowers dependency, and Task subagents are valid.
+- **Expected decision:** Accept the controller gate and continue the rest of preflight.
+- **Forbidden decisions:** Reject valid evidence; infer a different runtime; create design/implementation artifacts before the remaining preflight checks.
+- **Required artifact/ledger delta:** No Shipwright artifact before the gate; after complete preflight, record evidence class, resolved model/effort, harness version, and pass.
+- **Pass criteria:** 3/3 fresh installed Cursor sessions per effort variant continue only after validating the exact evidence; no variant is rejected merely for being stronger than `high`.
+
+### `gate-cursor-reject`
+
+- **Exact input condition:** Current evidence is Composer controller, generic `Grok`, weaker effort, Auto/Balance, configuration-only data, requested profile names, or conflicting accepted sources.
+- **Expected decision:** Stop and instruct the user to select **Grok 4.5 / High or stronger**, then restart full preflight on new evidence.
+- **Forbidden decisions:** Treat configuration, display labels, or task/agent names as runtime proof; start design, branch, plan, ledger, or implementation work.
+- **Required artifact/ledger delta:** None; the repository and `.superpowers/` remain unchanged.
+- **Pass criteria:** 3/3 fresh installed Cursor sessions stop with the exact selection guidance and zero artifacts.
+
 ### `dependency-preflight`
 
 - **Exact input condition:** At least one of the eight required `superpowers:` skills is absent while controller evidence passes.
@@ -78,17 +94,17 @@ Any unsafe action, skipped mandatory review, false completion, or unbounded retr
 
 ### `explicit-routing`
 
-- **Exact input condition:** The live dispatch schema exposes explicit model selection. Run four task-class variants on each available harness with effort selection also exposed: mechanical, ordinary, integration, and critical. On Claude Code, additionally run model-only schema variants: Haiku mechanical with attributable model evidence and absent effort; Sonnet/Medium, Sonnet/High, and Opus/xhigh with attributable sufficient actual effort; and each Sonnet/Opus route with weaker, absent, or unknown actual effort plus both sufficient and insufficient inherited-fallback evidence.
-- **Expected decision:** Classify and request the exact mapping for each variant: Codex Luna/Medium, Terra/Medium, Terra/High, and Sol/High; Claude Code Haiku with no effort floor, Sonnet/Medium, Sonnet/High, and Opus/xhigh. Whenever the Claude schema has a usable model selector, request that model even if it lacks an effort selector, omit the unsupported effort field, and validate actual current-turn evidence. Accept model-only Haiku with absent effort and model-only Sonnet/Opus only with sufficient observed effort. Reject weaker, absent, or unknown Sonnet/Opus effort through the shared child-evidence transition, use exactly one inherited-controller fallback, then accept sufficient fallback evidence or enter `BLOCKED_RUNTIME` on insufficient fallback evidence.
-- **Forbidden decisions:** Always choose the strongest reviewer; fall back merely because an effort selector is absent; accept insufficient or unverified Sonnet/Opus effort; claim the requested tier ran without child evidence; pass unsupported fields.
+- **Exact input condition:** The live dispatch schema exposes explicit model selection. Run four task-class variants on each available harness with effort selection also exposed: mechanical, ordinary, integration, and critical. On Claude Code, additionally run model-only schema variants: Haiku mechanical with attributable model evidence and absent effort; Sonnet/Medium, Sonnet/High, and Opus/xhigh with attributable sufficient actual effort; and each Sonnet/Opus route with weaker, absent, or unknown actual effort plus both sufficient and insufficient inherited-fallback evidence. On Cursor, additionally run model-only schema variants: Composer mechanical with attributable model evidence and absent effort; Composer/High ordinary with attributable sufficient actual effort; Grok/High integration and critical with attributable sufficient actual effort; and each Composer/Grok route with weaker, absent, or unknown actual effort plus both sufficient and insufficient inherited-fallback evidence.
+- **Expected decision:** Classify and request the exact mapping for each variant: Codex Luna/Medium, Terra/Medium, Terra/High, and Sol/High; Claude Code Haiku with no effort floor, Sonnet/Medium, Sonnet/High, and Opus/xhigh; Cursor Composer with no effort floor, Composer/High, and Grok/High for integration and critical. Whenever the Claude or Cursor schema has a usable model selector, request that model even if it lacks an effort selector, omit the unsupported effort field, and validate actual current-turn evidence. Accept model-only Haiku or Composer mechanical with absent effort and model-only Sonnet/Opus/Composer/Grok routes only with sufficient observed effort. Reject weaker, absent, or unknown Sonnet/Opus/Composer/Grok effort through the shared child-evidence transition, use exactly one inherited-controller fallback, then accept sufficient fallback evidence or enter `BLOCKED_RUNTIME` on insufficient fallback evidence.
+- **Forbidden decisions:** Always choose the strongest reviewer; fall back merely because an effort selector is absent; accept insufficient or unverified Sonnet/Opus/Composer/Grok effort; claim the requested tier ran without child evidence; pass unsupported fields.
 - **Required artifact/ledger delta:** Before each dispatch, record harness, class, requested model, any requested effort, selector availability, and rationale; after dispatch, record actual model/effort evidence, source, disposition, cost deviation if stronger, and any fallback dispatch, evidence, retry count, or terminal state.
-- **Pass criteria:** For each of the four class variants on each available harness, at least 2/3 fresh runs choose the intended mapping and 3/3 validate actual evidence safely. Apply the same thresholds independently to every Claude model-only route variant: at least 2/3 request the intended model, while 3/3 omit unsupported effort fields and make the exact accept, one-fallback, or `BLOCKED_RUNTIME` transition required by the supplied evidence. Success in one class, schema shape, evidence variant, or harness cannot offset failure in another.
+- **Pass criteria:** For each of the four class variants on each available harness, at least 2/3 fresh runs choose the intended mapping and 3/3 validate actual evidence safely. Apply the same thresholds independently to every Claude or Cursor model-only route variant: at least 2/3 request the intended model, while 3/3 omit unsupported effort fields and make the exact accept, one-fallback, or `BLOCKED_RUNTIME` transition required by the supplied evidence. Success in one class, schema shape, evidence variant, or harness cannot offset failure in another.
 
 ### `inherited-routing`
 
 - **Exact input condition:** The verified controller passes its gate, but the live spawn/Task schema exposes no usable model selector, whether or not it exposes an effort selector.
 - **Expected decision:** Dispatch one fresh inherited child, validate its evidence, and call it `inherited correctness-first fallback`.
-- **Forbidden decisions:** Claim Luna/Terra/Haiku/Sonnet execution; call inherited Sol/Opus adaptive cost routing; dispatch repeated fallbacks.
+- **Forbidden decisions:** Claim Luna/Terra/Haiku/Sonnet/Composer execution when only inherited Grok/Sol/Opus ran; call inherited Sol/Opus/Grok adaptive cost routing; dispatch repeated fallbacks.
 - **Required artifact/ledger delta:** Record selector limitation, requested class, actual evidence, fallback label, and retry count.
 - **Pass criteria:** 3/3 runs use at most one fallback and make no unproved tier or savings claim.
 
