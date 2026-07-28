@@ -52,19 +52,19 @@ Any unsafe action, skipped mandatory review, false completion, or unbounded retr
 
 ### `gate-cursor-pass`
 
-- **Exact input condition:** Cursor current-turn harness metadata or status identifies resolved Grok 4.5 family with effort `high` or stronger (`xhigh`, `max`); required capabilities, Superpowers dependency, and Task subagents are valid.
+- **Exact input condition:** Cursor current-turn evidence identifies resolved Grok 4.5 family with effort `high` or stronger (`xhigh`, `max`). Include same-source variants and composite variants where harness metadata resolves only the family (for example `Cursor Grok 4.5`) while status/model-picker evidence or authoritative user confirmation of the visible effort label supplies High+; required capabilities, Superpowers dependency, and Task subagents are valid.
 - **Expected decision:** Accept the controller gate and continue the rest of preflight.
-- **Forbidden decisions:** Reject valid evidence; infer a different runtime; create design/implementation artifacts before the remaining preflight checks.
+- **Forbidden decisions:** Reject valid evidence; reject family-only harness metadata as a wrong-model failure when High+ effort is separately attributable; infer a different runtime; create design/implementation artifacts before the remaining preflight checks.
 - **Required artifact/ledger delta:** No Shipwright artifact before the gate; after complete preflight, record evidence class, resolved model/effort, harness version, and pass.
-- **Pass criteria:** 3/3 fresh installed Cursor sessions per effort variant continue only after validating the exact evidence; no variant is rejected merely for being stronger than `high`.
+- **Pass criteria:** 3/3 fresh installed Cursor sessions per effort variant continue only after validating the exact evidence; no variant is rejected merely for being stronger than `high`; composite family-plus-effort variants pass when both dimensions are attributable.
 
 ### `gate-cursor-reject`
 
-- **Exact input condition:** Current evidence is Composer controller, generic `Grok`, weaker effort, Auto/Balance, configuration-only data, requested profile names, or conflicting accepted sources.
-- **Expected decision:** Stop and instruct the user to select **Grok 4.5 / High or stronger**, then restart full preflight on new evidence.
-- **Forbidden decisions:** Treat configuration, display labels, or task/agent names as runtime proof; start design, branch, plan, ledger, or implementation work.
+- **Exact input condition:** Current evidence is Composer controller, generic `Grok`, weaker effort, Auto/Balance, configuration-only data, requested profile names, conflicting accepted sources, or family-resolved harness metadata with no attributable High+ effort evidence from any accepted class.
+- **Expected decision:** Stop. For unresolved/wrong family, instruct the user to select **Grok 4.5 / High or stronger** and restart full preflight on new evidence. For resolved family with only effort missing, request High+ status/model-picker evidence or authoritative user confirmation of the visible High+ effort label without asking the user to re-select the model family.
+- **Forbidden decisions:** Treat configuration, unresolved display labels, or task/agent names as runtime proof; treat family-only harness metadata as complete gate proof; start design, branch, plan, ledger, or implementation work.
 - **Required artifact/ledger delta:** None; the repository and `.superpowers/` remain unchanged.
-- **Pass criteria:** 3/3 fresh installed Cursor sessions stop with the exact selection guidance and zero artifacts.
+- **Pass criteria:** 3/3 fresh installed Cursor sessions stop with the matching guidance and zero artifacts.
 
 ### `dependency-preflight`
 

@@ -737,6 +737,25 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertTrue(any("Claude controller gate" in error for error in errors), errors)
         self.assertTrue(any("Cursor controller gate" in error for error in errors), errors)
 
+    def test_reports_missing_cursor_family_only_effort_contracts(self) -> None:
+        cursor = "plugins/shipwright/skills/shipwright/references/cursor.md"
+        self.replace(cursor, "Cursor Grok 4.5", "Cursor Grok-other")
+        self.replace(cursor, "family dimension only", "model identity only")
+        self.replace(cursor, "Compose dimensions", "Merge evidence")
+        self.replace(
+            cursor,
+            "only effort evidence is missing",
+            "controller evidence is incomplete",
+        )
+        errors = validate_bundle(self.repo_root)
+        for fragment in (
+            "Cursor controller family display evidence",
+            "Cursor harness family-only evidence",
+            "Cursor composite family/effort evidence",
+            "Cursor incomplete-effort guidance",
+        ):
+            self.assertTrue(any(fragment in error for error in errors), errors)
+
     def test_reports_missing_child_evidence_and_retry_contracts(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
         self.replace(skill, "BLOCKED_RUNTIME", "RUNTIME_STOP")
