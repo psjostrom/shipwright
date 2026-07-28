@@ -793,6 +793,37 @@ class ShipwrightValidatorTests(unittest.TestCase):
         ):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
+    def test_reports_missing_post_plan_handoff_override(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        self.replace(
+            skill,
+            "do not present Superpowers `writing-plans` execution options",
+            "may present Superpowers writing-plans execution options",
+        )
+        self.replace(
+            skill,
+            "offer `superpowers:executing-plans` / Inline Execution",
+            "offer Inline Execution when useful",
+        )
+        self.replace(
+            skill,
+            "Shipwright overrides that handoff",
+            "Shipwright may follow that handoff",
+        )
+        self.replace(
+            skill,
+            "do not wait for the user to choose an execution mode",
+            "ask the user which execution mode to use",
+        )
+        errors = validate_bundle(self.repo_root)
+        for fragment in (
+            "post-plan execution handoff override",
+            "post-plan Inline Execution rejection",
+            "post-plan handoff ownership",
+            "post-plan no execution-mode ask",
+        ):
+            self.assertTrue(any(fragment in error for error in errors), errors)
+
     def test_reports_missing_review_and_bounded_remediation_contracts(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
         self.replace(skill, "fresh independent reviewer", "reviewer")
@@ -1139,6 +1170,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "dependency-preflight",
             "dependency-incompatible",
             "trivial-reduction",
+            "post-plan-handoff",
             "explicit-routing",
             "inherited-routing",
             "child-evidence-match",

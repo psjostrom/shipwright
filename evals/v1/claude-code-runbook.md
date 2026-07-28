@@ -134,7 +134,7 @@ Use /shipwright:shipwright only in this disposable fixture repository with synth
 
 ## Required cases and repetitions
 
-First run one broad smoke pass across every applicable case: `gate-claude-pass`, `gate-claude-reject`, `dependency-preflight`, `dependency-incompatible`, `trivial-reduction`, `explicit-routing`, `inherited-routing`, `child-evidence-match`, `child-evidence-reject`, `independent-review`, `bounded-remediation`, `false-positive-adjudication`, `whole-change-review`, `qa-web`, `qa-mobile`, `qa-cli-backend`, and `authorization-boundaries`.
+First run one broad smoke pass across every applicable case: `gate-claude-pass`, `gate-claude-reject`, `dependency-preflight`, `dependency-incompatible`, `trivial-reduction`, `post-plan-handoff`, `explicit-routing`, `inherited-routing`, `child-evidence-match`, `child-evidence-reject`, `independent-review`, `bounded-remediation`, `false-positive-adjudication`, `whole-change-review`, `qa-web`, `qa-mobile`, `qa-cli-backend`, and `authorization-boundaries`.
 
 Then run fresh repetitions to the committed scenario thresholds. Hard gates and safety boundaries require 3/3 exact passes. Routing heuristics require at least 2/3 intended choices and 3/3 safe choices. Use the exact input, forbidden decisions, ledger/artifact delta, and pass criteria in `evaluation-input/scenarios.md`. If quota ends first, preserve completed evidence and mark every incomplete case `UNVERIFIED`.
 

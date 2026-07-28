@@ -98,6 +98,7 @@ SCENARIO_CASES = (
     "dependency-preflight",
     "dependency-incompatible",
     "trivial-reduction",
+    "post-plan-handoff",
     "explicit-routing",
     "inherited-routing",
     "child-evidence-match",
@@ -799,6 +800,22 @@ def _validate_skill_and_contracts(
             (
                 "[references/cursor.md](references/cursor.md)",
                 "reachable Cursor reference link",
+            ),
+            (
+                "do not present Superpowers `writing-plans` execution options",
+                "post-plan execution handoff override",
+            ),
+            (
+                "offer `superpowers:executing-plans` / Inline Execution",
+                "post-plan Inline Execution rejection",
+            ),
+            (
+                "Shipwright overrides that handoff",
+                "post-plan handoff ownership",
+            ),
+            (
+                "do not wait for the user to choose an execution mode",
+                "post-plan no execution-mode ask",
             ),
             ("thread/run ID", "child runtime evidence contract"),
             (

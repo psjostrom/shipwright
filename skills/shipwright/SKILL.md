@@ -47,6 +47,8 @@ Use `superpowers:brainstorming` unless the user already approved a written desig
 
 After approval, use `superpowers:using-git-worktrees` and `superpowers:writing-plans`. Split work into bounded, independently testable tasks with exact files, interfaces, tests, and completion contracts. Record the original merge base for final review.
 
+After the plan is saved, do not present Superpowers `writing-plans` execution options, ask which approach to use, or offer `superpowers:executing-plans` / Inline Execution. Shipwright overrides that handoff: proceed immediately to §5 ledger initialization, then §6–§8 with `superpowers:subagent-driven-development` and independent review gates. Announce the override briefly if useful; do not wait for the user to choose an execution mode.
+
 ## 5. Exclude artifacts and initialize the ledger
 
 Before writing any `.superpowers/` path, run `git check-ignore` on that exact path. If needed, add the exact `.superpowers/` pattern to the repository-local exclude file returned by `git rev-parse --git-path info/exclude`; never edit a global ignore. Re-check exclusion. If local exclusion cannot be established, stop and ask before using an external temporary location.
@@ -190,3 +192,5 @@ Finish only after the approved specification, every task review, whole-change re
 | “One more retry might work.” | Enforce the runtime and remediation budgets. |
 | “Partial QA is close enough.” | Set `BLOCKED_QA`; only `verified` passes. |
 | “Autonomous means external actions are allowed.” | Apply the authorization matrix. |
+| “Which approach—Subagent-Driven or Inline?” | Only after an approved plan is saved: override the `writing-plans` handoff, initialize the ledger, and dispatch SDD. Otherwise finish §§1–4 first. |
+| “Inline Execution is fine for this plan.” | Only after an approved plan is saved: require `subagent-driven-development`; do not use `executing-plans`. Otherwise finish §§1–4 first. |
