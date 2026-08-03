@@ -831,6 +831,18 @@ def _validate_skill_and_contracts(
                 "controller gate before trivial reduction",
             ),
             (
+                "Recommended controller effort is not a precondition",
+                "shared controller effort disclosure rule",
+            ),
+            (
+                "Disclose that effort evidence state in the completion report and in any authorized PR body",
+                "controller effort completion and PR disclosure",
+            ),
+            (
+                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                "controller effort never hard-stops",
+            ),
+            (
                 "unreadable platform reference is a stop condition",
                 "unreadable platform reference stop",
             ),
@@ -906,9 +918,20 @@ def _validate_skill_and_contracts(
         codex_text,
         (
             ("gpt-5.6-sol", "Codex controller gate exact model"),
-            ("effort rank `high` or stronger", "Codex controller gate effort"),
-            ("GPT-5.6 Sol / High or stronger", "Codex controller gate guidance"),
+            (
+                "Recommended controller effort rank is `high` or stronger",
+                "Codex recommended controller effort",
+            ),
+            (
+                "Recommended controller effort is not a precondition",
+                "Codex controller effort not a precondition",
+            ),
+            ("select **GPT-5.6 Sol**", "Codex controller gate guidance"),
             ("generic family label", "Codex controller evidence rejection"),
+            (
+                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                "Codex controller effort never hard-stops",
+            ),
         ),
         CODEX_REFERENCE,
         errors,
@@ -917,16 +940,35 @@ def _validate_skill_and_contracts(
         claude_text,
         (
             ("claude-opus-4-6", "Claude controller gate minimum model version"),
-            ("effort rank `xhigh` or stronger", "Claude controller gate effort"),
-            ("Opus 4.6 / xhigh or stronger", "Claude controller gate guidance"),
+            (
+                "Recommended controller effort rank is `xhigh` or stronger",
+                "Claude recommended controller effort",
+            ),
+            (
+                "Recommended controller effort is not a precondition",
+                "Claude controller effort not a precondition",
+            ),
+            ("select **Opus 4.6 or newer**", "Claude controller gate guidance"),
             ("unresolved word `opus`", "Claude controller evidence rejection"),
             (
                 "Accept attributable model-family evidence without effort only when",
                 "Claude model-only absent effort acceptance",
             ),
             (
-                "The controller gate's Opus / xhigh+ effort floor is unchanged",
-                "Claude controller effort floor not waived",
+                "Child effort is waived here because",
+                "Claude child effort waiver justification",
+            ),
+            (
+                "only when the schema has no effort selector and accepted child records do not attribute effort",
+                "Claude child effort waiver attribution condition",
+            ),
+            (
+                "If effort is attributable, validate it against the route floor even when the selector is absent",
+                "Claude attributable effort without selector",
+            ),
+            (
+                "Do not treat the child waiver and the controller disclosure rule as the same mechanism",
+                "Claude child waiver vs controller disclosure",
             ),
             (
                 "Do not enter the inherited-controller fallback solely because effort is absent",
@@ -936,6 +978,10 @@ def _validate_skill_and_contracts(
                 "Family alone governs worker routing; version comparison applies only at the controller gate",
                 "Claude worker family vs controller version",
             ),
+            (
+                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                "Claude controller effort never hard-stops",
+            ),
         ),
         CLAUDE_REFERENCE,
         errors,
@@ -944,12 +990,22 @@ def _validate_skill_and_contracts(
         cursor_text,
         (
             ("Grok 4.5", "Cursor controller gate Grok 4.5 family"),
-            ("effort rank `high` or stronger", "Cursor controller gate effort"),
-            ("Grok 4.5 / High or stronger", "Cursor controller gate guidance"),
+            (
+                "Recommended controller effort rank is `high` or stronger",
+                "Cursor recommended controller effort",
+            ),
+            (
+                "Recommended controller effort is not a precondition",
+                "Cursor controller effort not a precondition",
+            ),
+            ("select **Grok 4.5**", "Cursor controller gate guidance"),
             ("Cursor Grok 4.5", "Cursor controller family display evidence"),
             ("family dimension only", "Cursor harness family-only evidence"),
             ("Compose dimensions", "Cursor composite family/effort evidence"),
-            ("only effort evidence is missing", "Cursor incomplete-effort guidance"),
+            (
+                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                "Cursor controller effort never hard-stops",
+            ),
             ("Composer < Grok", "Cursor worker family order"),
             ("Task({ subagent_type, prompt, model", "Cursor Task dispatch"),
             ("Reject Composer as controller", "Cursor controller Composer rejection"),

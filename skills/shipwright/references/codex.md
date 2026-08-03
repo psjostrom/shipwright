@@ -10,7 +10,15 @@ No releases newer than the minimum are currently listed as explicitly incompatib
 
 ## Controller gate
 
-Accept only exact active model ID `gpt-5.6-sol` with effort rank `high` or stronger.
+### Model floor (hard gate)
+
+Accept only exact active model ID `gpt-5.6-sol`.
+
+A future model, renamed model, or generic family label is not accepted until this reference explicitly allowlists it from first-party compatibility evidence.
+
+### Recommended effort (disclosed assumption, not a precondition)
+
+Recommended controller effort rank is `high` or stronger. Recommended controller effort is not a precondition and is never a hard gate.
 
 Normalized effort order:
 
@@ -18,17 +26,19 @@ Normalized effort order:
 low < medium < high < xhigh < max
 ```
 
-Unknown effort labels are not automatically stronger. A future model, renamed model, or generic family label is not accepted until this reference explicitly allowlists it from first-party compatibility evidence.
+Unknown effort labels are not automatically stronger. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below `high` still proceeds — record the shortfall as `below recommended`. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose the controller effort evidence state per the shared `SKILL.md` rule (completion report and any authorized PR body, not only the ledger).
 
 Accepted current-turn evidence, in priority order:
 
-1. Harness-provided metadata for this turn containing exact model ID and effort.
-2. A current-session status/model-picker view containing both values; a user screenshot or verbatim status readout is acceptable because the user is authoritative for their active UI state.
-3. A local `turn_context` record whose thread ID matches the active Codex thread and whose current turn contains both values.
+1. Harness-provided metadata for this turn containing exact model ID and, when present, effort.
+2. A current-session status/model-picker view containing the model and, when present, effort; a user screenshot or verbatim status readout is acceptable because the user is authoritative for their active UI state.
+3. A local `turn_context` record whose thread ID matches the active Codex thread and whose current turn contains the model and, when present, effort.
+
+Model and effort may come from the same source or be composed across accepted sources for the same controller turn. Exact model ID without effort proves the model floor only and does not invent effort.
 
 Reject launch arguments, config files, environment variables, requested overrides, task/agent/profile names, unmatched thread records, and generic labels such as `GPT-5`. Conflicting accepted sources are unverified.
 
-On failure, stop before all Shipwright artifacts and say: select **GPT-5.6 Sol / High or stronger**, then provide new current-session evidence so the complete preflight can restart.
+On model-floor failure, stop before all Shipwright artifacts and say: select **GPT-5.6 Sol**, then provide new current-session evidence so the complete preflight can restart.
 
 ## Worker routing
 
@@ -61,7 +71,7 @@ Inspect the live tool schema. Supply explicit model/profile and effort fields on
 
 The current generic `spawn_agent` interface may omit model and effort selection. In that case:
 
-1. Verify the controller passed the Sol/High gate.
+1. Verify the controller passed the Sol model floor.
 2. Dispatch one fresh child with `fork_turns: "none"` when sufficient task-local files exist; otherwise pass only the minimum recent context.
 3. Require child current-turn evidence.
 4. Record `inherited correctness-first fallback` and the actual evidence.

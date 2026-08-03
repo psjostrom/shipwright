@@ -12,11 +12,19 @@ No releases newer than the minimum are currently listed as explicitly incompatib
 
 ## Controller gate
 
-Accept only resolved Grok 4.5 family IDs with effort rank `high` or stronger.
+### Model floor (hard gate)
+
+Accept only resolved Grok 4.5 family IDs.
 
 Examples of acceptable family evidence forms, not an exhaustive invent-list: harness/display labels such as `Cursor Grok 4.5` or `powered by Cursor Grok 4.5`, and IDs/slugs such as `cursor-grok-4.5` or `grok-4.5`.
 
-Examples of acceptable effort evidence forms: effort-bearing slug tokens such as `cursor-grok-4.5-high` or `cursor-grok-4.5-high-fast` when the token is `high` or stronger; current-session status/model-picker labels such as `High`, `Extra High`, `xhigh`, or `max`; CLI `model.param_summary` values that normalize to those ranks.
+A future model, renamed model, or generic family label is not accepted until this reference explicitly allowlists it from first-party compatibility evidence.
+
+### Recommended effort (disclosed assumption, not a precondition)
+
+Recommended controller effort rank is `high` or stronger. Recommended controller effort is not a precondition and is never a hard gate.
+
+Examples of acceptable effort evidence forms when present: effort-bearing slug tokens such as `cursor-grok-4.5-high` or `cursor-grok-4.5-high-fast` when the token is `high` or stronger; current-session status/model-picker labels such as `High`, `Extra High`, `xhigh`, or `max`; CLI `model.param_summary` values that normalize to those ranks.
 
 Normalized effort order:
 
@@ -24,22 +32,19 @@ Normalized effort order:
 low < medium < high < xhigh < max
 ```
 
-When effort is encoded only in the model slug, parse the effort token from the slug and treat that as the effort dimension. Cursor harness identity commonly exposes only the Grok 4.5 family display name and omits effort; that resolves the family dimension only and does not prove, weaken, or invent effort. Unknown nonempty effort tokens are unverified. Unknown effort labels are not automatically stronger. A future model, renamed model, or generic family label is not accepted until this reference explicitly allowlists it from first-party compatibility evidence.
+When effort is encoded only in the model slug, parse the effort token from the slug and treat that as the effort dimension. Cursor harness identity commonly exposes only the Grok 4.5 family display name and omits effort; that resolves the family dimension only and does not prove, weaken, or invent effort. Unknown nonempty effort tokens are unverified. Unknown effort labels are not automatically stronger. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below `high` still proceeds — record the shortfall as `below recommended`. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose the controller effort evidence state per the shared `SKILL.md` rule (completion report and any authorized PR body, not only the ledger).
 
 Accepted current-turn evidence, in priority order:
 
 1. Harness-provided metadata for this turn containing resolved model ID and/or effort. Dimensions may come from the same source or be composed across accepted sources for the same controller turn.
 2. A current-session status/model-picker view containing the missing dimension(s); a user screenshot, verbatim status readout, or authoritative user confirmation of the visible picker/status values is acceptable because the user is authoritative for their active UI state.
-3. Any Cursor-exposed child/parent turn record that attributes the required values to this controller turn.
+3. Any Cursor-exposed child/parent turn record that attributes model or effort values to this controller turn.
 
-Compose dimensions when needed: if harness metadata resolves allowlisted Grok 4.5 family and effort is absent from that metadata, keep the family result and obtain effort from evidence class 2 or 3. Do not treat family-only harness metadata as a wrong-model failure, and do not instruct the user to change models when only effort evidence is missing.
+Compose dimensions when needed: if harness metadata resolves allowlisted Grok 4.5 family and effort is absent from that metadata, keep the family result and record effort from evidence class 2 or 3 when available, else `unverifiable`. Do not treat family-only harness metadata as a wrong-model failure, and do not instruct the user to change models when only effort evidence is missing.
 
-Reject Composer as controller. Reject Auto, Balance, generic labels such as `Grok` or `GPT-5`, unresolved display-only names, launch arguments, settings JSON, requested profile names, and task/agent names until resolved to an allowlisted family ID. Allowlisted family display labels such as `Cursor Grok 4.5` are family evidence, not complete gate proof by themselves. Conflicting accepted sources are unverified.
+Reject Composer as controller. Reject Auto, Balance, generic labels such as `Grok` or `GPT-5`, unresolved display-only names, launch arguments, settings JSON, requested profile names, and task/agent names until resolved to an allowlisted family ID. Allowlisted family display labels such as `Cursor Grok 4.5` are sufficient model-floor evidence; they are not resolved effort by themselves. Conflicting accepted sources are unverified.
 
-On failure:
-
-- If family is unresolved or wrong: stop before all Shipwright artifacts and say: select **Grok 4.5 / High or stronger**, then provide new current-session evidence so the complete preflight can restart.
-- If family is resolved and only effort evidence is missing or unverified: stop before all Shipwright artifacts and say the Grok 4.5 family is resolved, but effort is not yet attributable; provide current-session status/model-picker evidence showing **High or stronger** (screenshot, verbatim readout, or confirmation of the visible effort label). Do not ask the user to re-select the model family.
+On model-floor failure, stop before all Shipwright artifacts and say: select **Grok 4.5**, then provide new current-session evidence so the complete preflight can restart.
 
 ## Worker routing
 
@@ -85,7 +90,7 @@ When a usable model selector exists but no effort selector exists:
 
 Use selector-absence fallback only when Task exposes no usable model selector, whether or not it exposes an effort selector:
 
-1. Verify the controller passed the Grok 4.5/High gate.
+1. Verify the controller passed the Grok 4.5 family model floor.
 2. Dispatch one fresh inherited child with task-local context.
 3. Require child current-turn evidence.
 4. Record `inherited correctness-first fallback` and the actual evidence.

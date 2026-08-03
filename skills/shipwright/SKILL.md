@@ -20,6 +20,8 @@ Identify the active harness, then read exactly one complete reference:
 
 Stop if the harness cannot be identified. Stop if the selected platform reference cannot be read. Apply its controller gate before writing specifications, plans, branches, ledgers, or implementation artifacts — including before any §3 reduction. An unreadable platform reference is a stop condition, not a downgrade or a reason to skip the gate. Configuration, aliases, task labels, filenames, and requested profiles are not current-turn evidence. Conflicting accepted evidence is unverified. After the user changes the model or supplies evidence, restart the complete preflight in the same task.
 
+Shared controller-gate product rule for every harness: the platform model/family floor is a hard gate. Recommended controller effort is not a precondition. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below the platform's recommended floor still proceeds — record the shortfall. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose that effort evidence state in the completion report and in any authorized PR body, not only the ledger. Platform references own how evidence is read; they must not invent a harder effort precondition than this shared rule.
+
 Inspect repository instructions, fresh upstream baseline when relevant, branch/worktree, tracked and untracked changes, test commands, authorization boundaries, and applicable QA surfaces. Preserve unrelated work. Do not implement on `main` or `master` without explicit authorization.
 
 ## 2. Verify dependencies and capabilities
@@ -181,7 +183,7 @@ Never put credentials, tokens, personal data, unredacted network payloads, or si
 
 ## 15. Finish the branch
 
-Finish only after the approved specification, every task review, whole-change review, fresh verification, and every applicable QA gate passes. Use `superpowers:finishing-a-development-branch`. Report scope, commits, verification, QA state, remaining risks, temporary evidence, and integration options. Never push, open a PR, deploy, or publish without explicit authorization.
+Finish only after the approved specification, every task review, whole-change review, fresh verification, and every applicable QA gate passes. Use `superpowers:finishing-a-development-branch`. Report scope, commits, verification, QA state, remaining risks, temporary evidence, integration options, and the controller effort evidence state from preflight (`resolved` with rank, `below recommended`, or `unverifiable`). When authorized to open a PR, put that same effort disclosure in the PR body. Never push, open a PR, deploy, or publish without explicit authorization.
 
 ## Red flags
 

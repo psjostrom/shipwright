@@ -744,15 +744,15 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.replace(cursor, "Compose dimensions", "Merge evidence")
         self.replace(
             cursor,
-            "only effort evidence is missing",
-            "controller evidence is incomplete",
+            "Never stop solely because controller effort is missing, weak, or unverifiable",
+            "Stop when controller effort is missing",
         )
         errors = validate_bundle(self.repo_root)
         for fragment in (
             "Cursor controller family display evidence",
             "Cursor harness family-only evidence",
             "Cursor composite family/effort evidence",
-            "Cursor incomplete-effort guidance",
+            "Cursor controller effort never hard-stops",
         ):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
@@ -811,6 +811,24 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "unreadable platform reference stop",
         ):
             self.assertTrue(any(fragment in error for error in errors), errors)
+
+    def test_reports_missing_linked_controller_effort_pr_disclosure(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        self.replace(
+            skill,
+            "Disclose that effort evidence state in the completion report and in any authorized PR body, not only the ledger.",
+            "Report completion status. Mention an authorized PR body only for publication scope.",
+        )
+        errors = validate_bundle(self.repo_root)
+        self.assertTrue(
+            any("controller effort completion and PR disclosure" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            "authorized PR body"
+            in self.path(skill).read_text(encoding="utf-8"),
+            "mutation must retain an unrelated authorized PR body phrase",
+        )
 
     def test_reports_missing_post_plan_handoff_override(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"

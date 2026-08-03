@@ -10,9 +10,17 @@ No releases newer than the minimum are currently listed as explicitly incompatib
 
 ## Controller gate
 
-Require a resolved Opus model at version `4.6` or newer, and effort rank `xhigh` or stronger.
+### Model floor (hard gate)
+
+Require a resolved Opus model at version `4.6` or newer.
 
 Accept an active model only when current runtime evidence resolves it to a concrete Opus model ID carrying a version, then compare that version numerically against the `4.6` floor. The version passes when its major version is greater than `4`, or when its major version equals `4` and its minor version is at least `6`. So `claude-opus-4-6` and `claude-opus-4-7` pass via the minor comparison, while `claude-opus-5` passes via the higher-major comparison. A context-size suffix such as `[1m]` describes the context window, not capability, and does not affect the comparison.
+
+An Opus version at or above the floor is accepted without editing this reference; record it as newer than the last behaviorally tested version. Reject a non-Opus family, an Opus version below the floor, and any evidence that does not resolve to a concrete versioned model ID — including the unresolved word `opus`, a bare family label, and a generic capability label.
+
+### Recommended effort (disclosed assumption, not a precondition)
+
+Recommended controller effort rank is `xhigh` or stronger. Recommended controller effort is not a precondition and is never a hard gate.
 
 Normalized effort order:
 
@@ -20,16 +28,18 @@ Normalized effort order:
 low < medium < high < xhigh < max
 ```
 
-Unknown effort labels are not automatically stronger. An Opus version at or above the floor is accepted without editing this reference; record it as newer than the last behaviorally tested version. Reject a non-Opus family, an Opus version below the floor, and any evidence that does not resolve to a concrete versioned model ID — including the unresolved word `opus`, a bare family label, and a generic capability label.
+Unknown effort labels are not automatically stronger. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below `xhigh` still proceeds — record the shortfall as `below recommended`. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose the controller effort evidence state per the shared `SKILL.md` rule (completion report and any authorized PR body, not only the ledger).
 
 Accepted current-turn evidence, in priority order:
 
-1. Harness-provided metadata for this turn containing resolved active model ID and effort.
-2. A current-session `/status` or model-picker view containing the resolved model and effort; a user screenshot or verbatim status readout is acceptable because the user is authoritative for their active UI state.
+1. Harness-provided metadata for this turn containing resolved active model ID and, when present, effort.
+2. A current-session `/status` or model-picker view containing the resolved model and, when present, effort; a user screenshot or verbatim status readout is acceptable because the user is authoritative for their active UI state.
+
+Model and effort may come from the same source or be composed across accepted sources for the same controller turn. Harness metadata commonly resolves the model without effort; that proves the model floor only and does not invent effort.
 
 Reject launch arguments, settings files, environment variables, requested overrides, task/agent names, and the unresolved word `opus`. Conflicting accepted sources are unverified.
 
-On failure, stop before all Shipwright artifacts and say: select **Opus 4.6 / xhigh or stronger**, then provide new current-session evidence so the complete preflight can restart.
+On model-floor failure, stop before all Shipwright artifacts and say: select **Opus 4.6 or newer**, then provide new current-session evidence so the complete preflight can restart.
 
 ## Worker routing
 
@@ -64,13 +74,13 @@ When a usable model selector exists but no effort selector exists:
 
 1. Dispatch the explicitly selected route model without an effort field.
 2. Record the platform limitation: adaptive effort routing is unavailable until the live schema exposes an effort selector or child effort becomes attributable through an accepted evidence class.
-3. Validate attributable model-family evidence against the route floor. Accept attributable model-family evidence without effort only when the selected route has no effort floor, or when this reference explicitly waives the effort dimension for that route because child effort cannot be requested or observed. Under this schema shape, this reference waives child effort for Ordinary, Integration, and Critical routes; Haiku mechanical already has no effort floor. A nonempty unknown effort label remains unverified. The controller gate's Opus / xhigh+ effort floor is unchanged and is not waived here.
+3. Validate attributable model-family evidence against the route floor. Accept attributable model-family evidence without effort only when the selected route has no effort floor, or when this reference explicitly waives the effort dimension for that route because child effort cannot be requested or observed. This reference waives child effort for Ordinary, Integration, and Critical routes only when the schema has no effort selector and accepted child records do not attribute effort; Haiku mechanical already has no effort floor. If effort is attributable, validate it against the route floor even when the selector is absent. A nonempty unknown effort label remains unverified. Child effort is waived here because the Agent tool has no effort selector and child effort is not attributable — requiring proof of a dimension the controller could never set or observe is incoherent. Controller recommended effort is a different rule: it is settable by the user but often unobservable from harness metadata, so the shared product rule records and discloses it rather than hard-stopping. Do not treat the child waiver and the controller disclosure rule as the same mechanism.
 4. Do not enter the inherited-controller fallback solely because effort is absent. Use that fallback only for weaker, conflicting, missing, or unattributable model-family evidence, per the shared child-evidence transition.
 5. If a later probe finds a usable effort selector or attributable child effort evidence, restore the route effort floors and validate both dimensions.
 
 Use selector-absence fallback only when Task/Agent exposes no usable model selector, whether or not it exposes an effort selector:
 
-1. Verify the controller passed the Opus 4.6-or-newer / xhigh gate.
+1. Verify the controller passed the Opus 4.6-or-newer model floor.
 2. Dispatch one fresh inherited child with task-local context.
 3. Require child current-turn evidence.
 4. Record `inherited correctness-first fallback` and the actual evidence.
