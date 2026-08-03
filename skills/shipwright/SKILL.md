@@ -18,7 +18,7 @@ Identify the active harness, then read exactly one complete reference:
 - Claude Code: [references/claude-code.md](references/claude-code.md)
 - Cursor: [references/cursor.md](references/cursor.md)
 
-Stop if the harness cannot be identified. Apply its controller gate before writing specifications, plans, branches, ledgers, or implementation artifacts. Configuration, aliases, task labels, filenames, and requested profiles are not current-turn evidence. Conflicting accepted evidence is unverified. After the user changes the model or supplies evidence, restart the complete preflight in the same task.
+Stop if the harness cannot be identified. Stop if the selected platform reference cannot be read. Apply its controller gate before writing specifications, plans, branches, ledgers, or implementation artifacts — including before any §3 reduction. An unreadable platform reference is a stop condition, not a downgrade or a reason to skip the gate. Configuration, aliases, task labels, filenames, and requested profiles are not current-turn evidence. Conflicting accepted evidence is unverified. After the user changes the model or supplies evidence, restart the complete preflight in the same task.
 
 Inspect repository instructions, fresh upstream baseline when relevant, branch/worktree, tracked and untracked changes, test commands, authorization boundaries, and applicable QA surfaces. Preserve unrelated work. Do not implement on `main` or `master` without explicit authorization.
 
@@ -39,7 +39,7 @@ Also verify the harness minimum and capabilities in its platform reference. A co
 
 ## 3. Reduce trivial work
 
-If the work is tiny, mechanical, locally obvious, and does not justify independent subagents, route it to a smaller workflow and explain the reduction. Shipwright wording does not justify costly fan-out for a one-line or otherwise trivial change.
+Only after §1 identifies the harness and the controller gate passes: if the work is tiny, mechanical, locally obvious, and does not justify independent subagents, route it to a smaller workflow and explain the reduction. Shipwright wording does not justify costly fan-out for a one-line or otherwise trivial change. The reduction path does not waive the controller gate or the requirement to read the platform reference.
 
 ## 4. Approve the design and plan
 
@@ -93,7 +93,7 @@ Each child receives the task brief, applicable repository instructions, base rev
 
 ## 7. Validate child evidence
 
-Require child thread/run ID plus current-turn model from an accepted platform evidence class. Require current-turn effort when the selected route defines an effort floor; absent effort is allowed only when that route defines none. Independently validate each reported dimension when the harness exposes the child turn/session record. Any unknown nonempty model or effort label is unverified.
+Require child thread/run ID plus current-turn model from an accepted platform evidence class. Require current-turn effort when the selected route defines an effort floor; absent effort is allowed only when that route defines none, or when the selected platform reference waives the effort dimension because the harness cannot request or attribute child effort. Independently validate each reported dimension when the harness exposes the child turn/session record. Any unknown nonempty model or effort label is unverified.
 
 Use the selected platform reference's model-family and effort orders. A result is sufficient only when every required dimension independently meets its requested floor; a stronger dimension never compensates for a weaker or unknown one.
 

@@ -823,8 +823,16 @@ def _validate_skill_and_contracts(
                 "conditional effort evidence contract",
             ),
             (
-                "absent effort is allowed only when that route defines none",
+                "absent effort is allowed only when that route defines none, or when the selected platform reference waives the effort dimension",
                 "absent effort evidence contract",
+            ),
+            (
+                "including before any §3 reduction",
+                "controller gate before trivial reduction",
+            ),
+            (
+                "unreadable platform reference is a stop condition",
+                "unreadable platform reference stop",
             ),
             (
                 "Independently validate each reported dimension",
@@ -908,10 +916,26 @@ def _validate_skill_and_contracts(
     _require_markers(
         claude_text,
         (
-            ("claude-opus-4-7", "Claude controller gate exact model"),
+            ("claude-opus-4-6", "Claude controller gate minimum model version"),
             ("effort rank `xhigh` or stronger", "Claude controller gate effort"),
-            ("Opus 4.7 / xhigh or stronger", "Claude controller gate guidance"),
+            ("Opus 4.6 / xhigh or stronger", "Claude controller gate guidance"),
             ("unresolved word `opus`", "Claude controller evidence rejection"),
+            (
+                "Accept attributable model-family evidence without effort only when",
+                "Claude model-only absent effort acceptance",
+            ),
+            (
+                "The controller gate's Opus / xhigh+ effort floor is unchanged",
+                "Claude controller effort floor not waived",
+            ),
+            (
+                "Do not enter the inherited-controller fallback solely because effort is absent",
+                "Claude no fallback on absent effort",
+            ),
+            (
+                "Family alone governs worker routing; version comparison applies only at the controller gate",
+                "Claude worker family vs controller version",
+            ),
         ),
         CLAUDE_REFERENCE,
         errors,
@@ -961,7 +985,7 @@ def _validate_claude_runbook(
         (CLAUDE_INVOCATION, "Claude runbook invocation"),
         ("Claude Code 2.1.117 or newer", "Claude runbook version floor"),
         ("Superpowers 6.1.1 or newer", "Claude runbook dependency floor"),
-        ("claude-opus-4-7", "Claude runbook exact model evidence"),
+        ("claude-opus-4-6", "Claude runbook minimum model version evidence"),
         ("xhigh or stronger", "Claude runbook effort evidence"),
         ("one broad smoke pass", "Claude runbook smoke threshold"),
         ("3/3 exact passes", "Claude runbook hard-gate threshold"),

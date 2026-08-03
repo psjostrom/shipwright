@@ -127,7 +127,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "/shipwright:shipwright",
             "Claude Code 2.1.117 or newer",
             "Superpowers 6.1.1 or newer",
-            "claude-opus-4-7",
+            "claude-opus-4-6",
             "xhigh or stronger",
             "one broad smoke pass",
             "3/3 exact passes",
@@ -724,7 +724,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
         self.replace(
             "plugins/shipwright/skills/shipwright/references/claude-code.md",
-            "claude-opus-4-7",
+            "claude-opus-4-6",
             "claude-other",
         )
         self.replace(
@@ -768,7 +768,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
         self.replace(
             skill,
-            "absent effort is allowed only when that route defines none",
+            "absent effort is allowed only when that route defines none, or when the selected platform reference waives the effort dimension",
             "absent effort is always allowed",
         )
         self.replace(
@@ -790,6 +790,25 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "absent effort evidence",
             "independent evidence dimensions",
             "unknown effort evidence",
+        ):
+            self.assertTrue(any(fragment in error for error in errors), errors)
+
+    def test_reports_missing_gate_before_reduction_contracts(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        self.replace(
+            skill,
+            "including before any §3 reduction",
+            "after design artifacts if needed",
+        )
+        self.replace(
+            skill,
+            "unreadable platform reference is a stop condition",
+            "unreadable platform reference may be ignored",
+        )
+        errors = validate_bundle(self.repo_root)
+        for fragment in (
+            "controller gate before trivial reduction",
+            "unreadable platform reference stop",
         ):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
@@ -1200,7 +1219,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         codex_manifest.unlink()
         self.replace(
             "plugins/shipwright/skills/shipwright/references/claude-code.md",
-            "claude-opus-4-7",
+            "claude-opus-4-6",
             "claude-other",
         )
         errors = validate_bundle(self.repo_root)
