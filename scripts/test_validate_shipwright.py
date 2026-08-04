@@ -105,6 +105,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "plugins/shipwright/skills/shipwright/agents/openai.yaml",
             "plugins/shipwright/evals/v1/claude-code-runbook.md",
             "plugins/shipwright/evals/v1/cursor-runbook.md",
+            "plugins/shipwright/evals/v1/codex-runbook.md",
         )
         for relative_path in paths:
             with self.subTest(path=relative_path):
@@ -148,7 +149,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "evaluation-input/scenarios.md",
             'environment_seed="$fixture_root/evaluation-input/environment-seed.md"',
             "printf 'shipwright_commit=%s\\n' \"$shipwright_commit\" > \"$environment_seed\"",
-            "printf 'shipwright_status=%s\\n' \"$shipwright_status\" >> \"$environment_seed\"",
+            "shipwright_status<<END_SHIPWRIGHT_STATUS",
+            "END_SHIPWRIGHT_STATUS",
             "printf 'shipwright_plugin_source=%s\\n' \"$shipwright_checkout/plugins/shipwright\" >> \"$environment_seed\"",
             "printf 'evidence_dir=%s\\n' \"$evidence_dir\" >> \"$environment_seed\"",
             "Read evaluation-input/environment-seed.md along with",
@@ -224,7 +226,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "evaluation-input/scenarios.md",
             'environment_seed="$fixture_root/evaluation-input/environment-seed.md"',
             "printf 'shipwright_commit=%s\\n' \"$shipwright_commit\" > \"$environment_seed\"",
-            "printf 'shipwright_status=%s\\n' \"$shipwright_status\" >> \"$environment_seed\"",
+            "shipwright_status<<END_SHIPWRIGHT_STATUS",
+            "END_SHIPWRIGHT_STATUS",
             "printf 'shipwright_plugin_source=%s\\n' \"$shipwright_checkout/plugins/shipwright\" >> \"$environment_seed\"",
             "printf 'cursor_plugins_local=%s\\n' \"$cursor_plugins_local\" >> \"$environment_seed\"",
             "printf 'evidence_dir=%s\\n' \"$evidence_dir\" >> \"$environment_seed\"",
@@ -260,6 +263,107 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assert_error(f"missing delegated Cursor case {case}")
                 self.replace(runbook_path, f"`removed-{case}`", f"`{case}`")
 
+    def test_reports_missing_codex_runbook_contracts(self) -> None:
+        runbook_path = "plugins/shipwright/evals/v1/codex-runbook.md"
+        required_markers = (
+            "## Prerequisites",
+            "## Safety boundaries",
+            "## Copy/paste prompt for Codex",
+            "## Required cases and repetitions",
+            "## Evidence bundle",
+            "## Result rubric",
+            "## Return template",
+            "Codex CLI 0.139.0 or newer",
+            "plugin discovery, Agent Skills, multi-agent dispatch, and current-turn metadata",
+            "Superpowers 6.1.1 or newer",
+            "gpt-5.6-sol",
+            "gpt-5.6-sol or newer",
+            "high or stronger",
+            "one broad smoke pass",
+            "3/3 exact passes",
+            "at least 2/3 intended",
+            "3/3 safe choices",
+            "PASS",
+            "FAIL",
+            "UNVERIFIED",
+            "disposable fixture repository",
+            "credentials",
+            "paid external services",
+            "must not modify Shipwright",
+            'shipwright_checkout="$(pwd -P)"',
+            'shipwright_status="<clean>"',
+            'fixture_root="$(mktemp -d)"',
+            'git -C "$fixture_root" init',
+            "evaluation-input/codex-runbook.md",
+            "evaluation-input/scenarios.md",
+            'environment_seed="$fixture_root/evaluation-input/environment-seed.md"',
+            "printf 'shipwright_commit=%s\\n' \"$shipwright_commit\" > \"$environment_seed\"",
+            "shipwright_status<<END_SHIPWRIGHT_STATUS",
+            "END_SHIPWRIGHT_STATUS",
+            "printf 'shipwright_plugin_source=%s\\n' \"$shipwright_checkout/plugins/shipwright\" >> \"$environment_seed\"",
+            "printf 'codex_version=%s\\n' \"$codex_version\" >> \"$environment_seed\"",
+            "printf 'evidence_dir=%s\\n' \"$evidence_dir\" >> \"$environment_seed\"",
+            "Read evaluation-input/environment-seed.md along with",
+            "Failure to create or read environment-seed.md makes the evaluation `UNVERIFIED`.",
+            "shipwright_prepare_codex_evaluation() {",
+            "SUPERPOWERS_PLUGIN_DIR",
+            "Load Shipwright only from the recorded shipwright_plugin_source via a disposable Codex marketplace install",
+            "If Codex is below 0.139.0, lacks plugin discovery, Agent Skills, multi-agent dispatch, or current-turn metadata, stop and mark the evaluation `UNVERIFIED`.",
+            "If Superpowers is below 6.1.1, stop and mark the evaluation `UNVERIFIED`.",
+            "Stop and report UNVERIFIED if Codex is below 0.139.0",
+            "Accept compatible newer Codex and Superpowers versions.",
+            "below-minimum Codex or Superpowers version is active",
+            ".git/info/exclude",
+            'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
+            'evidence_dir="$fixture_root/.superpowers/sdd/evals/$run_id"',
+            "Failure of copy/setup, ignore verification, disposable plugin loading, or fixture-rooted workspace entry",
+            "$shipwright:shipwright",
+        )
+        required_markers += validator.CODEX_CHECKED_SETUP
+        for index, marker in enumerate(required_markers):
+            with self.subTest(marker=marker):
+                replacement = f"__missing_codex_contract_{index}__"
+                self.replace(runbook_path, marker, replacement)
+                self.assert_error("Codex runbook")
+                self.replace(runbook_path, replacement, marker)
+
+    def test_reports_every_missing_codex_runbook_case(self) -> None:
+        runbook_path = "plugins/shipwright/evals/v1/codex-runbook.md"
+        for case in validator.CODEX_RUNBOOK_CASES:
+            with self.subTest(case=case):
+                self.replace(runbook_path, f"`{case}`", f"`removed-{case}`")
+                self.assert_error(f"missing delegated Codex case {case}")
+                self.replace(runbook_path, f"`removed-{case}`", f"`{case}`")
+
+    def test_requires_each_codex_fixture_setup_operation_to_be_checked_and_tracked(
+        self,
+    ) -> None:
+        runbook_path = "plugins/shipwright/evals/v1/codex-runbook.md"
+        original = self.path(runbook_path).read_text(encoding="utf-8")
+        for marker in validator.CODEX_CHECKED_SETUP:
+            with self.subTest(step=marker.splitlines()[0]):
+                self.assertIn(marker, original)
+                unguarded = marker.replace(" || return 1", "")
+                self.path(runbook_path).write_text(
+                    original.replace(marker, unguarded, 1), encoding="utf-8"
+                )
+                self.assert_error("checked setup")
+        self.path(runbook_path).write_text(original, encoding="utf-8")
+
+    def test_rejects_codex_runbook_interactive_shell_exit(self) -> None:
+        runbook_path = "plugins/shipwright/evals/v1/codex-runbook.md"
+        original = self.path(runbook_path).read_text(encoding="utf-8")
+        self.path(runbook_path).write_text(
+            original.replace(
+                '  printf \'%s\\n\' "Shipwright Codex setup failed',
+                '  exit 1\n  printf \'%s\\n\' "Shipwright Codex setup failed',
+                1,
+            ),
+            encoding="utf-8",
+        )
+        self.assert_error("interactive-shell safety")
+        self.path(runbook_path).write_text(original, encoding="utf-8")
+
     def test_requires_disable_model_invocation_frontmatter(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
         self.replace(skill, "disable-model-invocation: true", "disable-model-invocation: false")
@@ -283,7 +387,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             '  shipwright_setup_step="exclude evidence"\n  printf \'%s\\n\' \'.superpowers/\' >> "$fixture_root/.git/info/exclude" || return 1',
             '  shipwright_setup_step="create evidence directories"\n  mkdir -p "$evidence_dir" "$isolated_home" "$isolated_xdg_config" \\\n    "$isolated_xdg_cache" "$isolated_claude_config" "$isolated_tmp" || return 1',
             '  shipwright_setup_step="write commit seed"\n  printf \'shipwright_commit=%s\\n\' "$shipwright_commit" > "$environment_seed" || return 1',
-            '  shipwright_setup_step="write status seed"\n  printf \'shipwright_status=%s\\n\' "$shipwright_status" >> "$environment_seed" || return 1',
+            '  shipwright_setup_step="write status seed"\n  {\n    printf \'shipwright_status<<END_SHIPWRIGHT_STATUS\\n\'\n    printf \'%s\\n\' "$shipwright_status"\n    printf \'END_SHIPWRIGHT_STATUS\\n\'\n  } >> "$environment_seed" || return 1',
             '  shipwright_setup_step="write plugin seed"\n  printf \'shipwright_plugin_source=%s\\n\' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1',
             '  shipwright_setup_step="write evidence seed"\n  printf \'evidence_dir=%s\\n\' "$evidence_dir" >> "$environment_seed" || return 1',
             '  shipwright_setup_step="verify evidence exclusion"\n  git -C "$fixture_root" check-ignore -q "$evidence_dir" || return 1',
@@ -317,7 +421,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             '  shipwright_setup_step="create evidence directories"\n  mkdir -p "$evidence_dir" || return 1',
             '  shipwright_setup_step="stage fixture-local Cursor plugin path"\n  cursor_plugins_local="$fixture_root/.cursor/plugins/local"\n  mkdir -p "$cursor_plugins_local" || return 1\n  ln -sfn "$shipwright_checkout/plugins/shipwright" "$cursor_plugins_local/shipwright" || return 1',
             '  shipwright_setup_step="write commit seed"\n  printf \'shipwright_commit=%s\\n\' "$shipwright_commit" > "$environment_seed" || return 1',
-            '  shipwright_setup_step="write status seed"\n  printf \'shipwright_status=%s\\n\' "$shipwright_status" >> "$environment_seed" || return 1',
+            '  shipwright_setup_step="write status seed"\n  {\n    printf \'shipwright_status<<END_SHIPWRIGHT_STATUS\\n\'\n    printf \'%s\\n\' "$shipwright_status"\n    printf \'END_SHIPWRIGHT_STATUS\\n\'\n  } >> "$environment_seed" || return 1',
             '  shipwright_setup_step="write plugin seed"\n  printf \'shipwright_plugin_source=%s\\n\' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1',
             '  shipwright_setup_step="write cursor plugins seed"\n  printf \'cursor_plugins_local=%s\\n\' "$cursor_plugins_local" >> "$environment_seed" || return 1',
             '  shipwright_setup_step="write evidence seed"\n  printf \'evidence_dir=%s\\n\' "$evidence_dir" >> "$environment_seed" || return 1',
@@ -737,6 +841,26 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertTrue(any("Claude controller gate" in error for error in errors), errors)
         self.assertTrue(any("Cursor controller gate" in error for error in errors), errors)
 
+    def test_reports_claude_exact_version_pin_regression(self) -> None:
+        claude = "plugins/shipwright/skills/shipwright/references/claude-code.md"
+        self.replace(
+            claude,
+            "Require a resolved Opus model at version `4.6` or newer.",
+            "Accept only exact active model ID `claude-opus-4-6`.",
+        )
+        self.replace(
+            claude,
+            "An Opus version at or above the floor is accepted without editing this reference; record it as newer than the last behaviorally tested version.",
+            "A future model, renamed model, or generic family label is not accepted until this reference explicitly allowlists it from first-party compatibility evidence.",
+        )
+        errors = validate_bundle(self.repo_root)
+        for fragment in (
+            "Claude controller gate numeric floor",
+            "Claude exact-version acceptance pin",
+            "Claude future-model allowlist brittleness",
+        ):
+            self.assertTrue(any(fragment in error for error in errors), errors)
+
     def test_reports_missing_cursor_family_only_effort_contracts(self) -> None:
         cursor = "plugins/shipwright/skills/shipwright/references/cursor.md"
         self.replace(cursor, "Cursor Grok 4.5", "Cursor Grok-other")
@@ -811,6 +935,41 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "unreadable platform reference stop",
         ):
             self.assertTrue(any(fragment in error for error in errors), errors)
+
+    def test_reports_missing_reduction_verification_surface_contracts(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        self.replace(
+            skill,
+            "and the verification surface it can affect is narrow",
+            "and the change looks cheap to implement",
+        )
+        self.replace(
+            skill,
+            "§11 fresh verification, or §12 QA routing",
+            "the controller gate, or the requirement to read the platform reference",
+        )
+        errors = validate_bundle(self.repo_root)
+        for fragment in (
+            "§3 verification-surface reduction criterion",
+            "§3 reduction never waives verification or QA",
+        ):
+            self.assertTrue(any(fragment in error for error in errors), errors)
+
+    def test_reports_missing_reduced_path_project_config_contract(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        self.replace(
+            skill,
+            "do not create or modify project-level configuration",
+            "project-level configuration may be added as needed",
+        )
+        errors = validate_bundle(self.repo_root)
+        self.assertTrue(
+            any(
+                "§3 reduced path no unrequested project config" in error
+                for error in errors
+            ),
+            errors,
+        )
 
     def test_reports_missing_linked_controller_effort_pr_disclosure(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
@@ -929,6 +1088,25 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "partially verified",
             "unverified",
             "BLOCKED_QA",
+        ):
+            self.assertTrue(any(fragment in error for error in errors), errors)
+
+    def test_reports_missing_argent_mcp_probe_contracts(self) -> None:
+        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        self.replace(
+            skill,
+            "loaded argent MCP toolset",
+            "argent CLI on PATH",
+        )
+        self.replace(
+            skill,
+            "CLI presence alone does not establish the capability",
+            "CLI presence is enough to proceed",
+        )
+        errors = validate_bundle(self.repo_root)
+        for fragment in (
+            "Argent mobile QA MCP-tool probe",
+            "Argent CLI not sufficient for mobile QA",
         ):
             self.assertTrue(any(fragment in error for error in errors), errors)
 

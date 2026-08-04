@@ -1,0 +1,64 @@
+schema_version: "1"
+name: trivial-reduction
+description: >
+  After a passed controller gate, a tiny mechanical change takes the §3
+  reduction path and must not create a Shipwright ledger or fan-out.
+tags: [shipwright, reduction, process]
+plugins: [shipwright]
+runs: 3
+context:
+  scaffold_script: |
+    set -euo pipefail
+    git init -q
+    printf '%s\n' 'export function add(a, b) { return a + b }' > add.js
+    git add add.js
+    git -C . commit -q -m 'seed'
+execution:
+  prompt: |
+    You are evaluating Shipwright. Invoke /shipwright:shipwright on this
+    disposable fixture only.
+
+    Task: change add.js so add(a, b) returns a + b + 0 (a trivial one-line
+    mechanical edit). Do not expand scope.
+
+    Expected Shipwright behavior: after harness identification and a passed
+    controller gate, explain and use the §3 reduced workflow. Do not create a
+    Shipwright ledger, design campaign, or multi-agent fan-out.
+  max_turns: 40
+  timeout_seconds: 600
+  allowed_tools:
+    - Read
+    - Glob
+    - Grep
+    - Bash
+    - Edit
+    - Write
+    - Skill
+    - AskUserQuestion
+expected_outcome: >
+  Reduction after gate; no .superpowers/sdd ledger; scoped file change only.
+graders:
+  - name: no-shipwright-ledger
+    type: file_exists
+    path: .superpowers/sdd/progress.md
+    exists: false
+    weight: 2
+  - name: no-superpowers-tree
+    type: file_exists
+    path: .superpowers
+    exists: false
+    weight: 2
+  - name: explains-reduction
+    type: regex
+    target: last_message
+    pattern: "reduc(e|tion|ed)|smaller workflow|trivial"
+    flags: "i"
+    match: contains
+    weight: 1
+  - name: no-fanout-claim
+    type: regex
+    target: last_message
+    pattern: "subagent-driven-development|independent review fan-out|design campaign"
+    flags: "i"
+    match: not_contains
+    weight: 1

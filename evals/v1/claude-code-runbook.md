@@ -74,7 +74,11 @@ shipwright_prepare_claude_evaluation() {
   shipwright_setup_step="write commit seed"
   printf 'shipwright_commit=%s\n' "$shipwright_commit" > "$environment_seed" || return 1
   shipwright_setup_step="write status seed"
-  printf 'shipwright_status=%s\n' "$shipwright_status" >> "$environment_seed" || return 1
+  {
+    printf 'shipwright_status<<END_SHIPWRIGHT_STATUS\n'
+    printf '%s\n' "$shipwright_status"
+    printf 'END_SHIPWRIGHT_STATUS\n'
+  } >> "$environment_seed" || return 1
   shipwright_setup_step="write plugin seed"
   printf 'shipwright_plugin_source=%s\n' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1
   shipwright_setup_step="write evidence seed"
@@ -111,7 +115,7 @@ unset -f shipwright_prepare_claude_evaluation
 unset shipwright_setup_step claude_auth_name claude_auth_value
 ```
 
-- `evaluation-input/environment-seed.md` contains the authoritative recorded checkout identity: `shipwright_commit`, complete `shipwright_status` (or `<clean>`), exact `shipwright_plugin_source`, and `evidence_dir`. It remains only in the disposable fixture; redact its personal absolute paths from returned evidence.
+- `evaluation-input/environment-seed.md` contains the authoritative recorded checkout identity: `shipwright_commit`, complete `shipwright_status` (or `<clean>`), exact `shipwright_plugin_source`, and `evidence_dir`. Multi-line `shipwright_status` is fenced between `shipwright_status<<END_SHIPWRIGHT_STATUS` and `END_SHIPWRIGHT_STATUS` so dirty-tree status cannot spill into later keys. It remains only in the disposable fixture; redact its personal absolute paths from returned evidence.
 - Record the seed's `shipwright_commit` and `shipwright_status` in the evidence bundle; the Shipwright checkout is the plugin source only, never the implementation target or evidence destination.
 - Use Claude Code 2.1.117 or newer and record `claude --version`. If Claude Code is below 2.1.117, stop and mark the evaluation `UNVERIFIED`. Accept a compatible newer version.
 - Resolve Superpowers 6.1.1 or newer from the explicit `SUPERPOWERS_PLUGIN_DIR`. If Superpowers is below 6.1.1, stop and mark the evaluation `UNVERIFIED`. Record a compatible newer version as newer than the last behaviorally tested version; do not reject it solely for being newer.

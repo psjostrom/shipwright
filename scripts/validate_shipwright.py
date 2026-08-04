@@ -22,6 +22,7 @@ CURSOR_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/cursor.md"
 SCENARIOS = PLUGIN_ROOT / "evals/v1/scenarios.md"
 CLAUDE_RUNBOOK = PLUGIN_ROOT / "evals/v1/claude-code-runbook.md"
 CURSOR_RUNBOOK = PLUGIN_ROOT / "evals/v1/cursor-runbook.md"
+CODEX_RUNBOOK = PLUGIN_ROOT / "evals/v1/codex-runbook.md"
 CODEX_MARKETPLACE = Path(".agents/plugins/marketplace.json")
 CLAUDE_MARKETPLACE = Path(".claude-plugin/marketplace.json")
 CURSOR_MARKETPLACE = Path(".cursor-plugin/marketplace.json")
@@ -63,7 +64,7 @@ CLAUDE_CHECKED_SETUP = (
     '  shipwright_setup_step="exclude evidence"\n  printf \'%s\\n\' \'.superpowers/\' >> "$fixture_root/.git/info/exclude" || return 1',
     '  shipwright_setup_step="create evidence directories"\n  mkdir -p "$evidence_dir" "$isolated_home" "$isolated_xdg_config" \\\n    "$isolated_xdg_cache" "$isolated_claude_config" "$isolated_tmp" || return 1',
     '  shipwright_setup_step="write commit seed"\n  printf \'shipwright_commit=%s\\n\' "$shipwright_commit" > "$environment_seed" || return 1',
-    '  shipwright_setup_step="write status seed"\n  printf \'shipwright_status=%s\\n\' "$shipwright_status" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write status seed"\n  {\n    printf \'shipwright_status<<END_SHIPWRIGHT_STATUS\\n\'\n    printf \'%s\\n\' "$shipwright_status"\n    printf \'END_SHIPWRIGHT_STATUS\\n\'\n  } >> "$environment_seed" || return 1',
     '  shipwright_setup_step="write plugin seed"\n  printf \'shipwright_plugin_source=%s\\n\' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1',
     '  shipwright_setup_step="write evidence seed"\n  printf \'evidence_dir=%s\\n\' "$evidence_dir" >> "$environment_seed" || return 1',
     '  shipwright_setup_step="verify evidence exclusion"\n  git -C "$fixture_root" check-ignore -q "$evidence_dir" || return 1',
@@ -137,6 +138,18 @@ CURSOR_RUNBOOK_CASES = tuple(
     }
 )
 
+CODEX_RUNBOOK_CASES = tuple(
+    case
+    for case in SCENARIO_CASES
+    if case
+    not in {
+        "gate-claude-pass",
+        "gate-claude-reject",
+        "gate-cursor-pass",
+        "gate-cursor-reject",
+    }
+)
+
 CURSOR_CHECKED_SETUP = (
     '  shipwright_setup_step="resolve checkout"\n  shipwright_checkout="$(pwd -P)" || return 1',
     '  shipwright_setup_step="read commit"\n  shipwright_commit="$(git -C "$shipwright_checkout" rev-parse HEAD)" || return 1',
@@ -151,9 +164,31 @@ CURSOR_CHECKED_SETUP = (
     '  shipwright_setup_step="create evidence directories"\n  mkdir -p "$evidence_dir" || return 1',
     '  shipwright_setup_step="stage fixture-local Cursor plugin path"\n  cursor_plugins_local="$fixture_root/.cursor/plugins/local"\n  mkdir -p "$cursor_plugins_local" || return 1\n  ln -sfn "$shipwright_checkout/plugins/shipwright" "$cursor_plugins_local/shipwright" || return 1',
     '  shipwright_setup_step="write commit seed"\n  printf \'shipwright_commit=%s\\n\' "$shipwright_commit" > "$environment_seed" || return 1',
-    '  shipwright_setup_step="write status seed"\n  printf \'shipwright_status=%s\\n\' "$shipwright_status" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write status seed"\n  {\n    printf \'shipwright_status<<END_SHIPWRIGHT_STATUS\\n\'\n    printf \'%s\\n\' "$shipwright_status"\n    printf \'END_SHIPWRIGHT_STATUS\\n\'\n  } >> "$environment_seed" || return 1',
     '  shipwright_setup_step="write plugin seed"\n  printf \'shipwright_plugin_source=%s\\n\' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1',
     '  shipwright_setup_step="write cursor plugins seed"\n  printf \'cursor_plugins_local=%s\\n\' "$cursor_plugins_local" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write evidence seed"\n  printf \'evidence_dir=%s\\n\' "$evidence_dir" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="verify evidence exclusion"\n  git -C "$fixture_root" check-ignore -q "$evidence_dir" || return 1',
+)
+
+CODEX_CHECKED_SETUP = (
+    '  shipwright_setup_step="resolve checkout"\n  shipwright_checkout="$(pwd -P)" || return 1',
+    '  shipwright_setup_step="read commit"\n  shipwright_commit="$(git -C "$shipwright_checkout" rev-parse HEAD)" || return 1',
+    '  shipwright_setup_step="read status"\n  shipwright_status="$(git -C "$shipwright_checkout" status --short)" || return 1',
+    '  shipwright_setup_step="resolve Superpowers plugin root"\n  superpowers_plugin_dir="${SUPERPOWERS_PLUGIN_DIR:-}"\n  [ -d "$superpowers_plugin_dir" ] || return 1',
+    '  shipwright_setup_step="probe Codex CLI"\n  codex_bin="$(command -v codex)" || return 1',
+    '  shipwright_setup_step="read Codex version"\n  codex_version="$("$codex_bin" --version 2>/dev/null || true)"\n  [ -n "$codex_version" ] || return 1',
+    '  shipwright_setup_step="create fixture"\n  fixture_root="$(mktemp -d)" || return 1',
+    '  shipwright_setup_step="initialize fixture repository"\n  git -C "$fixture_root" init >/dev/null || return 1',
+    '  shipwright_setup_step="create evaluation input directory"\n  mkdir -p "$fixture_root/evaluation-input" || return 1',
+    '  shipwright_setup_step="copy runbook"\n  cp "$shipwright_checkout/plugins/shipwright/evals/v1/codex-runbook.md" \\\n    "$fixture_root/evaluation-input/codex-runbook.md" || return 1',
+    '  shipwright_setup_step="copy scenarios"\n  cp "$shipwright_checkout/plugins/shipwright/evals/v1/scenarios.md" \\\n    "$fixture_root/evaluation-input/scenarios.md" || return 1',
+    '  shipwright_setup_step="exclude evidence"\n  printf \'%s\\n\' \'.superpowers/\' >> "$fixture_root/.git/info/exclude" || return 1',
+    '  shipwright_setup_step="create evidence directories"\n  mkdir -p "$evidence_dir" || return 1',
+    '  shipwright_setup_step="write commit seed"\n  printf \'shipwright_commit=%s\\n\' "$shipwright_commit" > "$environment_seed" || return 1',
+    '  shipwright_setup_step="write status seed"\n  {\n    printf \'shipwright_status<<END_SHIPWRIGHT_STATUS\\n\'\n    printf \'%s\\n\' "$shipwright_status"\n    printf \'END_SHIPWRIGHT_STATUS\\n\'\n  } >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write plugin seed"\n  printf \'shipwright_plugin_source=%s\\n\' "$shipwright_checkout/plugins/shipwright" >> "$environment_seed" || return 1',
+    '  shipwright_setup_step="write Codex version seed"\n  printf \'codex_version=%s\\n\' "$codex_version" >> "$environment_seed" || return 1',
     '  shipwright_setup_step="write evidence seed"\n  printf \'evidence_dir=%s\\n\' "$evidence_dir" >> "$environment_seed" || return 1',
     '  shipwright_setup_step="verify evidence exclusion"\n  git -C "$fixture_root" check-ignore -q "$evidence_dir" || return 1',
 )
@@ -632,6 +667,22 @@ def _require_markers(
             errors.append(f"{_display(relative_path)} is missing {label}: {marker!r}")
 
 
+def _forbid_markers(
+    content: Optional[str],
+    markers: tuple[tuple[str, str], ...],
+    relative_path: Path,
+    errors: list[str],
+) -> None:
+    if content is None:
+        return
+    active = _active_markdown(content)
+    for marker, label in markers:
+        if marker in active:
+            errors.append(
+                f"{_display(relative_path)} must not contain {label}: {marker!r}"
+            )
+
+
 def _active_markdown(markdown: str) -> str:
     """Return Markdown text outside fenced code blocks and HTML comments."""
 
@@ -831,6 +882,18 @@ def _validate_skill_and_contracts(
                 "controller gate before trivial reduction",
             ),
             (
+                "and the verification surface it can affect is narrow",
+                "§3 verification-surface reduction criterion",
+            ),
+            (
+                "§11 fresh verification, or §12 QA routing",
+                "§3 reduction never waives verification or QA",
+            ),
+            (
+                "do not create or modify project-level configuration",
+                "§3 reduced path no unrequested project config",
+            ),
+            (
                 "Recommended controller effort is not a precondition",
                 "shared controller effort disclosure rule",
             ),
@@ -886,6 +949,14 @@ def _validate_skill_and_contracts(
             ("agent-browser", "agent-browser web QA route"),
             ("Playwright", "Playwright web regression route"),
             ("argent", "Argent mobile QA route"),
+            (
+                "loaded argent MCP toolset",
+                "Argent mobile QA MCP-tool probe",
+            ),
+            (
+                "CLI presence alone does not establish the capability",
+                "Argent CLI not sufficient for mobile QA",
+            ),
             ("BLOCKED_QA", "BLOCKED_QA terminal state"),
             ("Install/download tools", "authorization boundary for tool installation"),
             ("paid quota", "authorization boundary for paid quota"),
@@ -917,7 +988,11 @@ def _validate_skill_and_contracts(
     _require_markers(
         codex_text,
         (
-            ("gpt-5.6-sol", "Codex controller gate exact model"),
+            ("gpt-5.6-sol", "Codex controller gate minimum model version"),
+            (
+                "Require a resolved Sol model at version `5.6` or newer",
+                "Codex controller gate numeric floor",
+            ),
             (
                 "Recommended controller effort rank is `high` or stronger",
                 "Codex recommended controller effort",
@@ -926,8 +1001,11 @@ def _validate_skill_and_contracts(
                 "Recommended controller effort is not a precondition",
                 "Codex controller effort not a precondition",
             ),
-            ("select **GPT-5.6 Sol**", "Codex controller gate guidance"),
-            ("generic family label", "Codex controller evidence rejection"),
+            ("select **GPT-5.6 Sol or newer**", "Codex controller gate guidance"),
+            (
+                "generic labels such as `GPT-5`",
+                "Codex controller evidence rejection",
+            ),
             (
                 "Never stop solely because controller effort is missing, weak, or unverifiable",
                 "Codex controller effort never hard-stops",
@@ -939,6 +1017,14 @@ def _validate_skill_and_contracts(
     _require_markers(
         claude_text,
         (
+            (
+                "Require a resolved Opus model at version `4.6` or newer",
+                "Claude controller gate numeric floor",
+            ),
+            (
+                "compare that version numerically against the `4.6` floor",
+                "Claude controller gate numeric comparison",
+            ),
             ("claude-opus-4-6", "Claude controller gate minimum model version"),
             (
                 "Recommended controller effort rank is `xhigh` or stronger",
@@ -986,10 +1072,59 @@ def _validate_skill_and_contracts(
         CLAUDE_REFERENCE,
         errors,
     )
+    _forbid_markers(
+        claude_text,
+        (
+            (
+                "Accept only exact",
+                "Claude exact-version acceptance pin",
+            ),
+            (
+                "until this reference explicitly allowlists",
+                "Claude future-model allowlist brittleness",
+            ),
+        ),
+        CLAUDE_REFERENCE,
+        errors,
+    )
+    _forbid_markers(
+        codex_text,
+        (
+            (
+                "Accept only exact",
+                "Codex exact-version acceptance pin",
+            ),
+            (
+                "until this reference explicitly allowlists",
+                "Codex future-model allowlist brittleness",
+            ),
+        ),
+        CODEX_REFERENCE,
+        errors,
+    )
+    _forbid_markers(
+        cursor_text,
+        (
+            (
+                "Accept only exact",
+                "Cursor exact-version acceptance pin",
+            ),
+            (
+                "until this reference explicitly allowlists",
+                "Cursor future-model allowlist brittleness",
+            ),
+        ),
+        CURSOR_REFERENCE,
+        errors,
+    )
     _require_markers(
         cursor_text,
         (
-            ("Grok 4.5", "Cursor controller gate Grok 4.5 family"),
+            ("Grok 4.5", "Cursor controller gate Grok 4.5 floor"),
+            (
+                "Require a resolved Grok model at version `4.5` or newer",
+                "Cursor controller gate numeric floor",
+            ),
             (
                 "Recommended controller effort rank is `high` or stronger",
                 "Cursor recommended controller effort",
@@ -998,7 +1133,7 @@ def _validate_skill_and_contracts(
                 "Recommended controller effort is not a precondition",
                 "Cursor controller effort not a precondition",
             ),
-            ("select **Grok 4.5**", "Cursor controller gate guidance"),
+            ("select **Grok 4.5 or newer**", "Cursor controller gate guidance"),
             ("Cursor Grok 4.5", "Cursor controller family display evidence"),
             ("family dimension only", "Cursor harness family-only evidence"),
             ("Compose dimensions", "Cursor composite family/effort evidence"),
@@ -1078,8 +1213,12 @@ def _validate_claude_runbook(
             "Claude runbook seeded commit transfer",
         ),
         (
-            "printf 'shipwright_status=%s\\n' \"$shipwright_status\" >> \"$environment_seed\"",
-            "Claude runbook seeded status transfer",
+            "shipwright_status<<END_SHIPWRIGHT_STATUS",
+            "Claude runbook seeded status fence open",
+        ),
+        (
+            "END_SHIPWRIGHT_STATUS",
+            "Claude runbook seeded status fence close",
         ),
         (
             "printf 'shipwright_plugin_source=%s\\n' \"$shipwright_checkout/plugins/shipwright\" >> \"$environment_seed\"",
@@ -1244,8 +1383,12 @@ def _validate_cursor_runbook(
             "Cursor runbook seeded commit transfer",
         ),
         (
-            "printf 'shipwright_status=%s\\n' \"$shipwright_status\" >> \"$environment_seed\"",
-            "Cursor runbook seeded status transfer",
+            "shipwright_status<<END_SHIPWRIGHT_STATUS",
+            "Cursor runbook seeded status fence open",
+        ),
+        (
+            "END_SHIPWRIGHT_STATUS",
+            "Cursor runbook seeded status fence close",
         ),
         (
             "printf 'shipwright_plugin_source=%s\\n' \"$shipwright_checkout/plugins/shipwright\" >> \"$environment_seed\"",
@@ -1335,6 +1478,168 @@ def _validate_cursor_runbook(
         if f"`{case}`" not in runbook_text:
             errors.append(
                 f"missing delegated Cursor case {case} in {_display(CURSOR_RUNBOOK)}"
+            )
+
+
+def _validate_codex_runbook(
+    runbook_text: Optional[str], errors: list[str]
+) -> None:
+    if runbook_text is not None and CODEX_INVOCATION not in runbook_text:
+        errors.append(
+            f"{_display(CODEX_RUNBOOK)} is missing Codex runbook invocation: "
+            f"{CODEX_INVOCATION!r}"
+        )
+    required_markers = (
+        ("## Prerequisites", "Codex runbook prerequisites"),
+        ("## Safety boundaries", "Codex runbook safety boundaries"),
+        (
+            "## Copy/paste prompt for Codex",
+            "Codex runbook copy/paste prompt",
+        ),
+        (
+            "## Required cases and repetitions",
+            "Codex runbook repetition contract",
+        ),
+        ("## Evidence bundle", "Codex runbook evidence bundle"),
+        ("## Result rubric", "Codex runbook result rubric"),
+        ("## Return template", "Codex runbook return template"),
+        (
+            "Codex CLI 0.139.0 or newer",
+            "Codex runbook version floor",
+        ),
+        (
+            "plugin discovery, Agent Skills, multi-agent dispatch, and current-turn metadata",
+            "Codex runbook capability floor",
+        ),
+        ("Superpowers 6.1.1 or newer", "Codex runbook dependency floor"),
+        ("gpt-5.6-sol", "Codex runbook minimum Sol model evidence"),
+        (
+            "gpt-5.6-sol or newer",
+            "Codex runbook Sol floor language",
+        ),
+        ("high or stronger", "Codex runbook effort evidence"),
+        ("one broad smoke pass", "Codex runbook smoke threshold"),
+        ("3/3 exact passes", "Codex runbook hard-gate threshold"),
+        ("at least 2/3 intended", "Codex runbook routing threshold"),
+        ("3/3 safe choices", "Codex runbook routing safety threshold"),
+        ("PASS", "Codex runbook PASS result"),
+        ("FAIL", "Codex runbook FAIL result"),
+        ("UNVERIFIED", "Codex runbook UNVERIFIED result"),
+        ("disposable fixture repository", "Codex runbook isolation boundary"),
+        ("credentials", "Codex runbook credential boundary"),
+        ("paid external services", "Codex runbook paid-service boundary"),
+        ("must not modify Shipwright", "Codex runbook evaluator boundary"),
+        ('shipwright_checkout="$(pwd -P)"', "Codex runbook checkout capture"),
+        (
+            'shipwright_status="<clean>"',
+            "Codex runbook explicit clean-status representation",
+        ),
+        ('fixture_root="$(mktemp -d)"', "Codex runbook fixture creation"),
+        ('git -C "$fixture_root" init', "Codex runbook fixture repository"),
+        (
+            "evaluation-input/codex-runbook.md",
+            "Codex runbook fixture-local runbook input",
+        ),
+        (
+            "evaluation-input/scenarios.md",
+            "Codex runbook fixture-local scenario input",
+        ),
+        (
+            'environment_seed="$fixture_root/evaluation-input/environment-seed.md"',
+            "Codex runbook fixture-local environment seed",
+        ),
+        (
+            "printf 'shipwright_commit=%s\\n' \"$shipwright_commit\" > \"$environment_seed\"",
+            "Codex runbook seeded commit transfer",
+        ),
+        (
+            "shipwright_status<<END_SHIPWRIGHT_STATUS",
+            "Codex runbook seeded status fence open",
+        ),
+        (
+            "END_SHIPWRIGHT_STATUS",
+            "Codex runbook seeded status fence close",
+        ),
+        (
+            "printf 'shipwright_plugin_source=%s\\n' \"$shipwright_checkout/plugins/shipwright\" >> \"$environment_seed\"",
+            "Codex runbook seeded plugin-source transfer",
+        ),
+        (
+            "printf 'codex_version=%s\\n' \"$codex_version\" >> \"$environment_seed\"",
+            "Codex runbook seeded version transfer",
+        ),
+        (
+            "printf 'evidence_dir=%s\\n' \"$evidence_dir\" >> \"$environment_seed\"",
+            "Codex runbook seeded evidence-destination transfer",
+        ),
+        (
+            "Read evaluation-input/environment-seed.md along with",
+            "Codex runbook seeded-identity read contract",
+        ),
+        (
+            "Failure to create or read environment-seed.md makes the evaluation `UNVERIFIED`.",
+            "Codex runbook unverifiable environment seed",
+        ),
+        ("shipwright_prepare_codex_evaluation() {", "Codex runbook setup gate"),
+        ("SUPERPOWERS_PLUGIN_DIR", "Codex runbook explicit Superpowers root"),
+        (
+            "Load Shipwright only from the recorded shipwright_plugin_source via a disposable Codex marketplace install",
+            "Codex runbook disposable plugin loading",
+        ),
+        (
+            "If Codex is below 0.139.0, lacks plugin discovery, Agent Skills, multi-agent dispatch, or current-turn metadata, stop and mark the evaluation `UNVERIFIED`.",
+            "Codex runbook below-minimum stop",
+        ),
+        (
+            "If Superpowers is below 6.1.1, stop and mark the evaluation `UNVERIFIED`.",
+            "Codex runbook below-minimum dependency stop",
+        ),
+        (
+            "Stop and report UNVERIFIED if Codex is below 0.139.0",
+            "Codex runbook prompt capability stop",
+        ),
+        (
+            "Accept compatible newer Codex and Superpowers versions.",
+            "Codex runbook prompt compatible-newer policy",
+        ),
+        (
+            "below-minimum Codex or Superpowers version is active",
+            "Codex runbook below-minimum UNVERIFIED rubric",
+        ),
+        (".git/info/exclude", "Codex runbook fixture ignore contract"),
+        (
+            'git -C "$fixture_root" check-ignore -q "$evidence_dir"',
+            "Codex runbook fixture evidence ignore verification",
+        ),
+        (
+            'evidence_dir="$fixture_root/.superpowers/sdd/evals/$run_id"',
+            "Codex runbook fixture-local evidence destination",
+        ),
+        (
+            "Failure of copy/setup, ignore verification, disposable plugin loading, or fixture-rooted workspace entry",
+            "Codex runbook unverifiable fixture setup",
+        ),
+    )
+    required_markers += tuple(
+        (marker, f"Codex runbook checked setup operation {index}")
+        for index, marker in enumerate(CODEX_CHECKED_SETUP, start=1)
+    )
+    _require_markers(
+        runbook_text,
+        required_markers,
+        CODEX_RUNBOOK,
+        errors,
+    )
+    if runbook_text is None:
+        return
+    if re.search(r"(?m)^ {0,3}exit(?:\s|$)", runbook_text):
+        errors.append(
+            f"{_display(CODEX_RUNBOOK)} violates interactive-shell safety with an exit command"
+        )
+    for case in CODEX_RUNBOOK_CASES:
+        if f"`{case}`" not in runbook_text:
+            errors.append(
+                f"missing delegated Codex case {case} in {_display(CODEX_RUNBOOK)}"
             )
 
 
@@ -1489,6 +1794,7 @@ def validate_bundle(repo_root: Path) -> list[str]:
     scenarios_text = _read_text(repo_root, SCENARIOS, errors)
     claude_runbook_text = _read_text(repo_root, CLAUDE_RUNBOOK, errors)
     cursor_runbook_text = _read_text(repo_root, CURSOR_RUNBOOK, errors)
+    codex_runbook_text = _read_text(repo_root, CODEX_RUNBOOK, errors)
     readme_text = _read_text(repo_root, README, errors)
 
     _validate_manifests(codex_manifest, claude_manifest, cursor_manifest, errors)
@@ -1506,6 +1812,7 @@ def validate_bundle(repo_root: Path) -> list[str]:
     )
     _validate_claude_runbook(claude_runbook_text, errors)
     _validate_cursor_runbook(cursor_runbook_text, errors)
+    _validate_codex_runbook(codex_runbook_text, errors)
     _validate_openai_metadata(openai_text, errors)
     readme_bullets = _validate_readme(readme_text, errors)
     _validate_stale_names(

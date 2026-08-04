@@ -1,0 +1,80 @@
+schema_version: "1"
+name: dependency-incompatible
+description: >
+  Below-floor or mixed Superpowers roots stop preflight; a coherent newer root
+  may continue with a warning.
+tags: [shipwright, dependency, version]
+plugins: [shipwright]
+runs: 3
+context:
+  scaffold_script: |
+    set -euo pipefail
+    git init -q
+    printf '%s\n' '# fixture' > README.md
+    git add README.md
+    git -C . commit -q -m 'seed'
+
+    root=".eval-plugins/superpowers"
+    mkdir -p "$root/.claude-plugin"
+    printf '%s\n' '{"name":"superpowers","version":"6.0.0"}' > "$root/.claude-plugin/plugin.json"
+    for skill in \
+      brainstorming \
+      using-git-worktrees \
+      writing-plans \
+      subagent-driven-development \
+      test-driven-development \
+      requesting-code-review \
+      verification-before-completion \
+      finishing-a-development-branch
+    do
+      mkdir -p "$root/skills/$skill"
+      printf '# %s\n' "$skill" > "$root/skills/$skill/SKILL.md"
+    done
+execution:
+  prompt: |
+    You are evaluating Shipwright. Invoke /shipwright:shipwright on this
+    disposable fixture only.
+
+    Task: add a one-line comment to README.md.
+
+    Superpowers for this eval is only the fixture inventory at
+    .eval-plugins/superpowers (also set as SUPERPOWERS_PLUGIN_DIR). Do not use
+    any host Superpowers install. That single package root reports version
+    6.0.0 (below the 6.1.1 floor) with all required skill names present.
+
+    Expected Shipwright behavior: stop and report the below-minimum dependency
+    with exact problem evidence. Produce no design, plan, ledger, or
+    implementation artifact.
+  max_turns: 30
+  timeout_seconds: 480
+  allowed_tools:
+    - Read
+    - Glob
+    - Grep
+    - Bash
+    - Skill
+    - AskUserQuestion
+  env:
+    SUPERPOWERS_PLUGIN_DIR: .eval-plugins/superpowers
+expected_outcome: >
+  Stop on below-minimum Superpowers; zero Shipwright artifacts.
+graders:
+  - name: no-ledger
+    type: file_exists
+    path: .superpowers/sdd/progress.md
+    exists: false
+    weight: 2
+  - name: reports-below-minimum
+    type: regex
+    target: last_message
+    pattern: "6\\.1\\.1|below|minimum|incompatible|version"
+    flags: "i"
+    match: contains
+    weight: 1
+  - name: does-not-continue-implementation
+    type: regex
+    target: last_message
+    pattern: "implementation complete|opened a PR|ledger initialized"
+    flags: "i"
+    match: not_contains
+    weight: 1
