@@ -22,6 +22,8 @@ Stop if the harness cannot be identified. Stop if the selected platform referenc
 
 Shared controller-gate product rule for every harness: the platform model/family floor is a hard gate. Recommended controller effort is not a precondition. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below the platform's recommended floor still proceeds — record the shortfall. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose that effort evidence state in the completion report and in any authorized PR body, not only the ledger. Platform references own how evidence is read; they must not invent a harder effort precondition than this shared rule.
 
+Resolve the subject repository as an explicit preflight output. Stop when a requested target path lies outside the current repository root, and direct the user to re-invoke Shipwright from that repository.
+
 Inspect repository instructions, fresh upstream baseline when relevant, branch/worktree, tracked and untracked changes, test commands, authorization boundaries, and applicable QA surfaces. Preserve unrelated work. Do not implement on `main` or `master` without explicit authorization.
 
 ## 2. Verify dependencies and capabilities

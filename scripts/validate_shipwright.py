@@ -320,10 +320,13 @@ def _validate_manifests(
 
     if isinstance(claude, dict):
         _require_equal(claude, ("name",), "shipwright", "Claude manifest name", CLAUDE_MANIFEST, errors)
-        if claude.get("version") != "1.0.0":
+        # Claude omits version so updates track git commit SHA. Cursor/Codex keep
+        # an explicit pin; that asymmetry is intentional — do not restore Claude
+        # version for cross-platform symmetry.
+        if "version" in claude:
             errors.append(
-                f"{_display(CLAUDE_MANIFEST)}: Claude manifest version must be exactly '1.0.0'; "
-                f"found {claude.get('version')!r}"
+                f"{_display(CLAUDE_MANIFEST)}: Claude manifest must omit version "
+                f"(SHA-tracked delivery); found {claude.get('version')!r}"
             )
         _require_equal(claude, ("description",), DESCRIPTION, "Claude manifest description", CLAUDE_MANIFEST, errors)
         _require_equal(claude, ("author", "name"), "psjostrom", "Claude manifest author.name", CLAUDE_MANIFEST, errors)
@@ -427,7 +430,6 @@ def _validate_marketplaces(
             "name": "shipwright",
             "source": "./plugins/shipwright",
             "description": DESCRIPTION,
-            "version": "1.0.0",
             "keywords": KEYWORDS,
             "category": "development",
         }
@@ -439,6 +441,14 @@ def _validate_marketplaces(
                 f"Claude marketplace {key}",
                 CLAUDE_MARKETPLACE,
                 errors,
+            )
+        # Same SHA-tracked policy as the Claude plugin.json — version pins from
+        # either location, so the marketplace entry must omit it too.
+        if "version" in claude:
+            errors.append(
+                f"{_display(CLAUDE_MARKETPLACE)}: Claude marketplace shipwright "
+                f"entry must omit version (SHA-tracked delivery); "
+                f"found {claude.get('version')!r}"
             )
         _require_equal(
             claude,

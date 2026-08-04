@@ -519,6 +519,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
     def test_manifest_versions_follow_platform_specific_contracts(self) -> None:
         codex_path = "plugins/shipwright/.codex-plugin/plugin.json"
         claude_path = "plugins/shipwright/.claude-plugin/plugin.json"
+        claude_marketplace_path = ".claude-plugin/marketplace.json"
 
         codex = self.read_json(codex_path)
         codex["version"] = "1.0.0+codex.local-20260720-120000"
@@ -541,13 +542,32 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
         codex["version"] = "1.0.0"
         self.write_json(codex_path, codex)
+
         claude = self.read_json(claude_path)
-        for invalid in ("1.0.1", "1.0.0-dev", "1.0.0+codex.local-1"):
-            with self.subTest(platform="claude", version=invalid):
-                claude["version"] = invalid
+        self.assertNotIn("version", claude)
+        self.assertEqual([], validate_bundle(self.repo_root))
+        for present in ("1.0.0", "1.0.1", "1.0.0-dev"):
+            with self.subTest(platform="claude", version=present):
+                claude["version"] = present
                 self.write_json(claude_path, claude)
                 errors = self.assert_error(claude_path)
-                self.assertTrue(any("version" in error for error in errors), errors)
+                self.assertTrue(
+                    any("must omit version" in error for error in errors), errors
+                )
+        claude.pop("version", None)
+        self.write_json(claude_path, claude)
+
+        claude_catalog = self.read_json(claude_marketplace_path)
+        shipwright_entry = next(
+            item for item in claude_catalog["plugins"] if item["name"] == "shipwright"
+        )
+        self.assertNotIn("version", shipwright_entry)
+        shipwright_entry["version"] = "1.0.0"
+        self.write_json(claude_marketplace_path, claude_catalog)
+        errors = self.assert_error(claude_marketplace_path)
+        self.assertTrue(any("must omit version" in error for error in errors), errors)
+        del shipwright_entry["version"]
+        self.write_json(claude_marketplace_path, claude_catalog)
 
         cursor_path = "plugins/shipwright/.cursor-plugin/plugin.json"
         cursor = self.read_json(cursor_path)
@@ -1432,7 +1452,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         codex["repository"] = "wrong"
         self.write_json(codex_path, codex)
         claude = self.read_json(claude_path)
-        claude["version"] = "1.0.1"
+        claude["version"] = "1.0.0"
         self.write_json(claude_path, claude)
         codex_catalog = self.read_json(codex_marketplace_path)
         next(
