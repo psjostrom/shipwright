@@ -908,8 +908,68 @@ def _validate_skill_and_contracts(
                 "shared controller effort disclosure rule",
             ),
             (
-                "Disclose that effort evidence state in the completion report and in any authorized PR body",
-                "controller effort completion and PR disclosure",
+                "Disclose that effort evidence state in the completion report and the ledger",
+                "controller effort completion and ledger disclosure",
+            ),
+            (
+                "Put it in an authorized PR body as well",
+                "controller effort positive PR-body disclosure",
+            ),
+            (
+                "forbid AI-attribution or tooling references in user-facing text",
+                "controller effort PR disclosure yields to repo rules",
+            ),
+            (
+                "Do not accept a workspace inside a tool-owned directory",
+                "§1 refuse tool-owned workspace placement",
+            ),
+            (
+                "Run an explicit discovery or collection command",
+                "§1 prove test discovery in workspace",
+            ),
+            (
+                "Do not treat a single targeted known-good test as sufficient",
+                "§1 reject targeted-test discovery substitute",
+            ),
+            (
+                "measure it at the merge base",
+                "§11 measure gates at merge base",
+            ),
+            (
+                "Piping a command to `tail` or `head` replaces its exit status",
+                "§11 piped exit-status warning",
+            ),
+            (
+                "docs/superpowers/",
+                "§5 writing-plans path exclusion",
+            ),
+            (
+                "the controller owns persistence where the platform prevents children from writing files",
+                "§5 controller-owned report persistence",
+            ),
+            (
+                "**Orphaned work.**",
+                "§7 orphaned-work adoption path",
+            ),
+            (
+                "non-destructive ownership and diff-scope check",
+                "§7 orphaned-work red-tree ownership check",
+            ),
+            (
+                "may serve both the final task's §8 gate and this whole-change gate",
+                "§10 final-task review consolidation",
+            ),
+            (
+                "Data mutations that are inherent to the flow under test are expected",
+                "§12 flow-inherent QA data mutations",
+            ),
+            (
+                "Escalate the class when the work is hard to reverse",
+                "§6 irreversibility escalation",
+            ),
+            (
+                "Exact-code plan steps carry correctness risk",
+                "§4 exact-code plan caution",
             ),
             (
                 "Never stop solely because controller effort is missing, weak, or unverifiable",
@@ -1065,6 +1125,22 @@ def _validate_skill_and_contracts(
             (
                 "Do not treat the child waiver and the controller disclosure rule as the same mechanism",
                 "Claude child waiver vs controller disclosure",
+            ),
+            (
+                "Claude Code's subagent tooling prevents children from writing report files",
+                "Claude child report file precondition",
+            ),
+            (
+                "have the controller persist it to the dispatch's artifact directory",
+                "Claude controller-persisted child reports",
+            ),
+            (
+                "Children will keep offering environment-variable-sourced effort",
+                "Claude env-sourced effort precondition",
+            ),
+            (
+                "expect it, reject it",
+                "Claude expected rejected env effort",
             ),
             (
                 "Do not enter the inherited-controller fallback solely because effort is absent",

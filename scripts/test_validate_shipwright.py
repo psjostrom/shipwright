@@ -993,21 +993,72 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
     def test_reports_missing_linked_controller_effort_pr_disclosure(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"
-        self.replace(
-            skill,
-            "Disclose that effort evidence state in the completion report and in any authorized PR body, not only the ledger.",
-            "Report completion status. Mention an authorized PR body only for publication scope.",
+        original = self.path(skill).read_text(encoding="utf-8")
+        cases = (
+            (
+                "Disclose that effort evidence state in the completion report and the ledger",
+                "Report completion status without recording effort evidence state",
+                "controller effort completion and ledger disclosure",
+            ),
+            (
+                "Put it in an authorized PR body as well",
+                "Omit effort evidence from any authorized PR body",
+                "controller effort positive PR-body disclosure",
+            ),
+            (
+                "forbid AI-attribution or tooling references in user-facing text",
+                "forbid AI-attribution alone",
+                "controller effort PR disclosure yields to repo rules",
+            ),
         )
-        errors = validate_bundle(self.repo_root)
-        self.assertTrue(
-            any("controller effort completion and PR disclosure" in error for error in errors),
-            errors,
+        for old, new, fragment in cases:
+            with self.subTest(fragment=fragment):
+                self.path(skill).write_text(original, encoding="utf-8")
+                self.replace(skill, old, new)
+                errors = validate_bundle(self.repo_root)
+                self.assertTrue(
+                    any(fragment in error for error in errors),
+                    errors,
+                )
+        self.path(skill).write_text(original, encoding="utf-8")
+
+    def test_reports_missing_claude_controller_child_report_actions(self) -> None:
+        claude = "plugins/shipwright/skills/shipwright/references/claude-code.md"
+        original = self.path(claude).read_text(encoding="utf-8")
+        cases = (
+            (
+                "have the controller persist it to the dispatch's artifact directory",
+                "leave the child's final message as the only record",
+                "Claude controller-persisted child reports",
+            ),
+            (
+                "expect it, reject it",
+                "expect it, and accept it when present",
+                "Claude expected rejected env effort",
+            ),
         )
-        self.assertTrue(
-            "authorized PR body"
-            in self.path(skill).read_text(encoding="utf-8"),
-            "mutation must retain an unrelated authorized PR body phrase",
-        )
+        for old, new, fragment in cases:
+            with self.subTest(fragment=fragment):
+                self.path(claude).write_text(original, encoding="utf-8")
+                self.replace(claude, old, new)
+                # Keep the matching precondition so only the controller action is missing.
+                remaining = self.path(claude).read_text(encoding="utf-8")
+                if fragment == "Claude controller-persisted child reports":
+                    self.assertIn(
+                        "Claude Code's subagent tooling prevents children from writing report files",
+                        remaining,
+                    )
+                else:
+                    self.assertIn(
+                        "Children will keep offering environment-variable-sourced effort",
+                        remaining,
+                    )
+                errors = validate_bundle(self.repo_root)
+                self.assertTrue(
+                    any(fragment in error for error in errors),
+                    errors,
+                )
+        self.path(claude).write_text(original, encoding="utf-8")
 
     def test_reports_missing_post_plan_handoff_override(self) -> None:
         skill = "plugins/shipwright/skills/shipwright/SKILL.md"

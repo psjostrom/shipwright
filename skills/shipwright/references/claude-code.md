@@ -28,7 +28,7 @@ Normalized effort order:
 low < medium < high < xhigh < max
 ```
 
-Unknown effort labels are not automatically stronger. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below `xhigh` still proceeds — record the shortfall as `below recommended`. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose the controller effort evidence state per the shared `SKILL.md` rule (completion report and any authorized PR body, not only the ledger).
+Unknown effort labels are not automatically stronger. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below `xhigh` still proceeds — record the shortfall as `below recommended`. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose the controller effort evidence state per the shared `SKILL.md` rule (completion report and ledger always; authorized PR body unless repository instructions forbid AI-attribution or tooling references in user-facing text).
 
 Accepted current-turn evidence, in priority order:
 
@@ -89,6 +89,8 @@ The same inherited-controller fallback is available once when an explicit dispat
 
 ## Child evidence
 
+Claude Code's subagent tooling prevents children from writing report files. Require the report as the child's final message text and have the controller persist it to the dispatch's artifact directory. Do not instruct a child to write its own report file — the instruction will fail and the child will improvise.
+
 Require the child report to include:
 
 ```text
@@ -98,4 +100,4 @@ effort: <rank | absent>
 evidence class: harness metadata | current-session status/model-picker
 ```
 
-When the live schema has no effort selector and child effort is not attributable, record `effort: absent` and the platform limitation; do not invent an effort rank. The controller independently reads the child session record when exposed and checks attribution. Requested selectors, aliases without resolution, and agent names remain non-evidence. Apply the shared child-evidence transition table and its one-fallback budget exactly.
+When the live schema has no effort selector and child effort is not attributable, record `effort: absent` and the platform limitation; do not invent an effort rank. Children will keep offering environment-variable-sourced effort; expect it, reject it, and do not treat the offer as a red flag about the child's competence. The controller independently reads the child session record when exposed and checks attribution. Requested selectors, aliases without resolution, and agent names remain non-evidence. Apply the shared child-evidence transition table and its one-fallback budget exactly.

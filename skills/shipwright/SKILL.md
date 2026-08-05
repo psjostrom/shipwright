@@ -20,11 +20,15 @@ Identify the active harness, then read exactly one complete reference:
 
 Stop if the harness cannot be identified. Stop if the selected platform reference cannot be read. Apply its controller gate before writing specifications, plans, branches, ledgers, or implementation artifacts — including before any §3 reduction. An unreadable platform reference is a stop condition, not a downgrade or a reason to skip the gate. Configuration, aliases, task labels, filenames, and requested profiles are not current-turn evidence. Conflicting accepted evidence is unverified. After the user changes the model or supplies evidence, restart the complete preflight in the same task.
 
-Shared controller-gate product rule for every harness: the platform model/family floor is a hard gate. Recommended controller effort is not a precondition. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below the platform's recommended floor still proceeds — record the shortfall. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose that effort evidence state in the completion report and in any authorized PR body, not only the ledger. Platform references own how evidence is read; they must not invent a harder effort precondition than this shared rule.
+Shared controller-gate product rule for every harness: the platform model/family floor is a hard gate. Recommended controller effort is not a precondition. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below the platform's recommended floor still proceeds — record the shortfall. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose that effort evidence state in the completion report and the ledger. Put it in an authorized PR body as well, unless repository instructions forbid AI-attribution or tooling references in user-facing text — in which case record the omission and its reason in the ledger rather than breaching the repository's rules. Platform references own how evidence is read; they must not invent a harder effort precondition than this shared rule.
 
 Resolve the subject repository as an explicit preflight output. Stop when a requested target path lies outside the current repository root, and direct the user to re-invoke Shipwright from that repository.
 
 Inspect repository instructions, fresh upstream baseline when relevant, branch/worktree, tracked and untracked changes, test commands, authorization boundaries, and applicable QA surfaces. Preserve unrelated work. Do not implement on `main` or `master` without explicit authorization.
+
+The workspace must live somewhere the project's own tooling will actually operate on. Do not accept a workspace inside a tool-owned directory such as `.claude/`, `.cursor/`, or `.agents/` — these are conventionally excluded from test runners, typecheckers, and linters, so a workspace inside one is invisible to the very tools §11 depends on. If it was created there by default, relocate it before dispatching anyone.
+
+Prove the test runner actually discovers tests in the chosen workspace before dispatching anyone. Run an explicit discovery or collection command such as `--listTests` or `--collect-only`, record a non-zero discovered-test count, and confirm it matches expectations. Do not treat a single targeted known-good test as sufficient discovery proof; if the project has no discovery/collection flag, run the unfiltered project test command and record its discovered-test count instead. A workspace the project's tooling silently ignores produces green runs that verify nothing, and the failure is invisible in exit codes. Confirm too that the workspace can actually build and test at all: freshly created worktrees routinely lack installed dependencies and generated-but-gitignored files that no commit contains.
 
 ## 2. Verify dependencies and capabilities
 
@@ -49,13 +53,13 @@ Only after §1 identifies the harness and the controller gate passes: if the wor
 
 Use `superpowers:brainstorming` unless the user already approved a written design. Clarify value, definition of done, constraints, maintenance burden, security, performance, and user friction. Challenge unnecessary complexity. Produce a concise specification, independently review substantial or high-risk designs, resolve Critical and Important findings, and obtain approval unless the prompt explicitly approves that design.
 
-After approval, use `superpowers:using-git-worktrees` and `superpowers:writing-plans`. Split work into bounded, independently testable tasks with exact files, interfaces, tests, and completion contracts. Record the original merge base for final review.
+After approval, use `superpowers:using-git-worktrees` and `superpowers:writing-plans`. Split work into bounded, independently testable tasks with exact files, interfaces, tests, and completion contracts. Record the original merge base for final review. Exact-code plan steps carry correctness risk proportional to how little of the target source the author has actually read and run; prefer precise interface contracts plus "read this first" over fabricated implementations for unread files.
 
 After the plan is saved, do not present Superpowers `writing-plans` execution options, ask which approach to use, or offer `superpowers:executing-plans` / Inline Execution. Shipwright overrides that handoff: proceed immediately to §5 ledger initialization, then §6–§8 with `superpowers:subagent-driven-development` and independent review gates. Announce the override briefly if useful; do not wait for the user to choose an execution mode.
 
 ## 5. Exclude artifacts and initialize the ledger
 
-Before writing any `.superpowers/` path, run `git check-ignore` on that exact path. If needed, add the exact `.superpowers/` pattern to the repository-local exclude file returned by `git rev-parse --git-path info/exclude`; never edit a global ignore. Re-check exclusion. If local exclusion cannot be established, stop and ask before using an external temporary location.
+Before writing any `.superpowers/` path, run `git check-ignore` on that exact path. If needed, add the exact `.superpowers/` pattern to the repository-local exclude file returned by `git rev-parse --git-path info/exclude`; never edit a global ignore. Re-check exclusion. If local exclusion cannot be established, stop and ask before using an external temporary location. Apply the same exclusion check to `docs/superpowers/`, which `superpowers:writing-plans` uses as its default save location, or direct the plan to a path under `.superpowers/`.
 
 Create or resume `.superpowers/sdd/progress.md`. The controller is its only writer. On initialization, ingest any compatible-newer warnings retained during preflight. Before every dispatch or resume:
 
@@ -78,11 +82,11 @@ Status, commands and exit status, findings and stable IDs
 Remediation lineage and cycles, commits, final verdict
 ```
 
-Children write only their own reports and unique artifacts. A read-only reviewer may write its report but must not mutate tracked product code. Run at most one write-capable implementer or fixer at a time. Independent read-only review and QA may run in parallel only with unique artifact paths and no shared mutable state.
+Children produce their own reports and any unique artifacts; the controller owns persistence where the platform prevents children from writing files. A read-only reviewer may write its report but must not mutate tracked product code. Run at most one write-capable implementer or fixer at a time. Independent read-only review and QA may run in parallel only with unique artifact paths and no shared mutable state.
 
 ## 6. Dispatch task-local work adaptively
 
-Classify each dispatch independently from scope, ambiguity, systems touched, integration, risk, judgment, brief quality, and prior attempts:
+Classify each dispatch independently from scope, ambiguity, systems touched, integration, risk, judgment, brief quality, and prior attempts. Escalate the class when the work is hard to reverse or the domain is unforgiving — financial, medical, safety-critical, destructive, or shipped where rollback is impossible. A small diff in code that cannot be rolled back deserves a higher tier than its size implies:
 
 | Task class | Examples | Route |
 | --- | --- | --- |
@@ -108,6 +112,8 @@ Use the selected platform reference's model-family and effort orders. A result i
 | Missing, conflicting, or not attributable to that child | Reject for the gated role; redispatch once through the inherited-controller fallback. |
 | Fallback proves the verified controller tier and meets the role minimum | Accept; record `inherited correctness-first fallback`. |
 | Fallback is weaker, conflicting, missing, or unverifiable | Set `BLOCKED_RUNTIME`; retain the report as untrusted evidence and stop. |
+
+**Orphaned work.** A dispatch that dies on a terminal platform or API error is distinct from one rejected for weak evidence. If it left uncommitted changes in the tree, nothing from it is accepted — there is no report and no attributable runtime. Do not resume it as itself and do not discard the changes reflexively. When the orphaned tree measures green under controller verification and auditing is cheaper than redoing the work, dispatch a fresh child to audit, correct, and take ownership of the orphaned diff, instructed explicitly to scrutinise rather than rubber-stamp it, and subject the result to the normal independent review. With a red or unverified orphaned tree, first perform a non-destructive ownership and diff-scope check: preserve unrelated user edits, and require authorization before any destructive Git or filesystem cleanup. Discard and redispatch from a clean base only after confirming the tree contains solely the failed dispatch's changes. Record the dead dispatch's status, that nothing was accepted from it, and that the adoption consumed the role's runtime fallback.
 
 The runtime budget is one fallback per gated role. It is separate from remediation and cannot reset when the task is renamed. Never credit untrusted work toward implementation, review, remediation, or QA gates.
 
@@ -137,11 +143,15 @@ Reject a reviewer finding only with direct source, test, or platform-documentati
 
 ## 10. Review the whole change
 
-After every task passes, generate a whole-branch package from the original merge base. Dispatch a fresh critical-tier reviewer who did not implement the change. Require specification, cross-task, regression, authorization, and code-quality verdicts. Remediate the complete finding set under the same stable-ID and bounded-cycle rules, then re-review the whole remediation.
+After every task passes, generate a whole-branch package from the original merge base. Dispatch a fresh critical-tier reviewer who did not implement the change. Require specification, cross-task, regression, authorization, and code-quality verdicts. Remediate the complete finding set under the same stable-ID and bounded-cycle rules, then re-review the whole remediation. A single fresh critical-tier reviewer may serve both the final task's §8 gate and this whole-change gate, provided it is asked for a separate per-task verdict alongside the whole-change verdicts and the consolidation is recorded. Do not consolidate any earlier task's gate this way — those reviews inform the work that follows them.
 
 ## 11. Run fresh verification
 
 Use `superpowers:verification-before-completion`. Independently inspect repository state and the complete diff; confirm unrelated work is untouched; then freshly run applicable formatting, lint/static analysis, builds, focused tests, full relevant suites, documentation/package validators, and the requested user flow. Read output and exit status. Old reports or worker summaries do not prove completion.
+
+Before treating any gate as pass/fail, measure it at the merge base. A repository with pre-existing lint, type, or test debt makes "the gate passes" the wrong bar — the bar is "no new failures versus base." Record both numbers in the ledger. Conversely, do not conclude a gate is unavailable because no packaged script wraps it; probe the underlying tool directly. A repository with no `typecheck` script may still have a clean typechecker, and a clean gate you skipped is the one most likely to be hiding a regression.
+
+Piping a command to `tail` or `head` replaces its exit status with the pipe's. Redirect to a file and read `$?`.
 
 Run deterministic verification before interactive QA. Record commands, results, versions, and redacted artifact paths.
 
@@ -152,7 +162,7 @@ Store redacted QA evidence under the already excluded `.superpowers/sdd/qa/<run-
 | Surface | Required route and core observations |
 | --- | --- |
 | Web | Probe `agent-browser --version`; require 0.32.3 or compatible newer and an isolated real browser. Exercise the changed flow and affected loading/error/empty states at relevant affected desktop and mobile viewports; inspect semantic DOM/UI, console and failed network requests when networked; capture material screenshots and viewport evidence. Existing Playwright tests remain regression evidence. Add Playwright for persistent or Chromium/Firefox/WebKit coverage. |
-| Android/iOS | Probe the loaded argent MCP toolset for interaction capability (device listing/control, screenshots, and gestures); require those tools to be present in the current session. CLI presence alone does not establish the capability. After the tools are present, optionally probe `argent --version` and require 0.16.0 or compatible newer as a secondary compatibility check. Android also needs `adb` and an emulator; iOS needs macOS, Xcode command-line tools, and a Simulator. Exercise the changed flow; inspect accessibility/component state, crashes/errors and failed requests when networked; capture material screenshots and performance evidence when performance is in scope. Preserve app/device data. |
+| Android/iOS | Probe the loaded argent MCP toolset for interaction capability (device listing/control, screenshots, and gestures); require those tools to be present in the current session. CLI presence alone does not establish the capability. After the tools are present, optionally probe `argent --version` and require 0.16.0 or compatible newer as a secondary compatibility check. Android also needs `adb` and an emulator; iOS needs macOS, Xcode command-line tools, and a Simulator. Exercise the changed flow; inspect accessibility/component state, crashes/errors and failed requests when networked; capture material screenshots and performance evidence when performance is in scope. Preserve app/device data: do not erase or reset app, simulator, emulator, or device state. Data mutations that are inherent to the flow under test are expected — perform them against test accounts, restore the prior state afterwards, and record both in the QA evidence. |
 | CLI | Build the distributable; run with isolated HOME, XDG config/cache/state, and task-specific data. Verify stdout, stderr, exit status, effects, malformed input, expected failures, and idempotence when promised. |
 | Backend | Run isolated local dependencies and a real request/job through persistence and intended side effects. Mock only external boundaries. Verify response/status, stored state, logs, expected failures, and retries/idempotence when promised. |
 
@@ -185,7 +195,7 @@ Never put credentials, tokens, personal data, unredacted network payloads, or si
 
 ## 15. Finish the branch
 
-Finish only after the approved specification, every task review, whole-change review, fresh verification, and every applicable QA gate passes. Use `superpowers:finishing-a-development-branch`. Report scope, commits, verification, QA state, remaining risks, temporary evidence, integration options, and the controller effort evidence state from preflight (`resolved` with rank, `below recommended`, or `unverifiable`). When authorized to open a PR, put that same effort disclosure in the PR body. Never push, open a PR, deploy, or publish without explicit authorization.
+Finish only after the approved specification, every task review, whole-change review, fresh verification, and every applicable QA gate passes. Use `superpowers:finishing-a-development-branch`. Report scope, commits, verification, QA state, remaining risks, temporary evidence, integration options, and the controller effort evidence state from preflight (`resolved` with rank, `below recommended`, or `unverifiable`) in the completion report and the ledger. When authorized to open a PR, put that same effort disclosure in the PR body unless repository instructions forbid AI-attribution or tooling references in user-facing text — in which case record the omission and its reason in the ledger rather than breaching the repository's rules. Never push, open a PR, deploy, or publish without explicit authorization.
 
 ## Red flags
 
