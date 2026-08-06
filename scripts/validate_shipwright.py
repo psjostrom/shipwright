@@ -908,16 +908,24 @@ def _validate_skill_and_contracts(
                 "shared controller effort disclosure rule",
             ),
             (
-                "Disclose that effort evidence state in the completion report and the ledger",
-                "controller effort completion and ledger disclosure",
+                "suppress `unverifiable` from the user-facing completion report",
+                "controller effort suppress unverifiable from completion report",
             ),
             (
-                "Put it in an authorized PR body as well",
-                "controller effort positive PR-body disclosure",
+                "and from any authorized PR body",
+                "controller effort suppress unverifiable from authorized PR body",
+            ),
+            (
+                "always record the effort evidence state in the ledger",
+                "controller effort always recorded in ledger",
             ),
             (
                 "forbid AI-attribution or tooling references in user-facing text",
                 "controller effort PR disclosure yields to repo rules",
+            ),
+            (
+                "compare it to the plugin install record",
+                "§1 loaded skill vs install-record check",
             ),
             (
                 "Do not accept a workspace inside a tool-owned directory",
@@ -928,8 +936,20 @@ def _validate_skill_and_contracts(
                 "§1 prove test discovery in workspace",
             ),
             (
+                "compare filtered path *sets*",
+                "§1 discovery uses path sets not counts",
+            ),
+            (
+                "run at least one real known-good test to green",
+                "§1 prove test execution not only discovery",
+            ),
+            (
                 "Do not treat a single targeted known-good test as sufficient",
                 "§1 reject targeted-test discovery substitute",
+            ),
+            (
+                "capture baseline screens at the merge base",
+                "§1 baseline screens before implementation",
             ),
             (
                 "measure it at the merge base",
@@ -940,12 +960,24 @@ def _validate_skill_and_contracts(
                 "§11 piped exit-status warning",
             ),
             (
+                "Redirect to a file and read `$?`",
+                "§11 file-backed tool exit status",
+            ),
+            (
+                "harness-reported completion code for a compound command is not the tool's exit status",
+                "§11 harness completion exit is not tool exit",
+            ),
+            (
                 "docs/superpowers/",
                 "§5 writing-plans path exclusion",
             ),
             (
                 "the controller owns persistence where the platform prevents children from writing files",
                 "§5 controller-owned report persistence",
+            ),
+            (
+                "Take the child thread/run ID from the harness spawn result",
+                "§7 child run ID from harness spawn",
             ),
             (
                 "**Orphaned work.**",
@@ -956,8 +988,52 @@ def _validate_skill_and_contracts(
                 "§7 orphaned-work red-tree ownership check",
             ),
             (
+                "Controller statements are not verification either",
+                "§8 controller statements are not verification",
+            ),
+            (
+                "**Reading evidence.**",
+                "§8 reading evidence section",
+            ),
+            (
+                "Read exit status from a value written to a file",
+                "§8 reading evidence file-backed exit status",
+            ),
+            (
+                "declare the plan frozen with the ledger authoritative",
+                "§8 plan vs ledger after remediation override",
+            ),
+            (
                 "may serve both the final task's §8 gate and this whole-change gate",
                 "§10 final-task review consolidation",
+            ),
+            (
+                "With exactly one task, that consolidation is allowed",
+                "§10 single-task consolidation case",
+            ),
+            (
+                "Screenshots are mandatory for applicable visual surfaces",
+                "§12 mandatory screenshots",
+            ),
+            (
+                "identical before/after screens are the required artifact",
+                "§12 before/after screens required artifact",
+            ),
+            (
+                "absolute QA evidence directory path",
+                "§12 absolute QA evidence path in completion report",
+            ),
+            (
+                "quantitative diff/observation numbers",
+                "§12 quantitative diff or observation numbers",
+            ),
+            (
+                "Prefer provisioning a fresh simulator/emulator",
+                "§12 prefer fresh simulator",
+            ),
+            (
+                "That path is storage, not publication",
+                "§12 QA path is storage not publication",
             ),
             (
                 "Data mutations that are inherent to the flow under test are expected",
@@ -1028,7 +1104,38 @@ def _validate_skill_and_contracts(
                 "Argent CLI not sufficient for mobile QA",
             ),
             ("BLOCKED_QA", "BLOCKED_QA terminal state"),
-            ("Install/download tools", "authorization boundary for tool installation"),
+            (
+                "Self-unblocking is an obligation, not a permission",
+                "§14 self-unblocking obligation",
+            ),
+            (
+                "clear project-local tool caches",
+                "§14 project-local cache clearing only",
+            ),
+            (
+                "Restore declared project state",
+                "authorization boundary for restoring declared state",
+            ),
+            (
+                "manifests and lockfiles byte-identical",
+                "§14 byte-identical restoration proof",
+            ),
+            (
+                "record both the action and the proof in the ledger",
+                "§14 restoration proof recorded in ledger",
+            ),
+            (
+                "If that proof fails, stop and surface the drift",
+                "§14 restoration drift handling",
+            ),
+            (
+                "Add/upgrade dependencies, mutate lockfile contents intentionally",
+                "authorization boundary for changing declared state",
+            ),
+            (
+                "Never pass `--no-verify` or `-n` to `git commit`",
+                "forbid git commit --no-verify",
+            ),
             ("paid quota", "authorization boundary for paid quota"),
             (
                 "push; open a PR; deploy; publish",

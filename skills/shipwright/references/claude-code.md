@@ -28,7 +28,7 @@ Normalized effort order:
 low < medium < high < xhigh < max
 ```
 
-Unknown effort labels are not automatically stronger. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below `xhigh` still proceeds — record the shortfall as `below recommended`. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose the controller effort evidence state per the shared `SKILL.md` rule (completion report and ledger always; authorized PR body unless repository instructions forbid AI-attribution or tooling references in user-facing text).
+Unknown effort labels are not automatically stronger. Record resolved effort when an accepted evidence class provides it; otherwise record `unverifiable`. Known effort below `xhigh` still proceeds — record the shortfall as `below recommended`. Never stop solely because controller effort is missing, weak, or unverifiable. Disclose the controller effort evidence state per the shared `SKILL.md` rule: ledger always; completion report and authorized PR body only when resolved or `below recommended` (suppress `unverifiable` from user-facing text); PR disclosure still yields to repository rules that forbid AI-attribution or tooling references. On this harness, controller effort is commonly unobservable from metadata — expect `unverifiable` and do not surface that noise to the user.
 
 Accepted current-turn evidence, in priority order:
 
