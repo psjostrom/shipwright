@@ -1048,6 +1048,38 @@ def _validate_skill_and_contracts(
                 "§4 exact-code plan caution",
             ),
             (
+                "Any literal expected value must either be measured",
+                "§4 literal expected values must be measured",
+            ),
+            (
+                "work on a branch in the main checkout instead",
+                "§1 worktree exception for generated gitignored files",
+            ),
+            (
+                "When §1's generated-gitignored-file exception applies, skip the fresh worktree",
+                "§4 worktree handoff honors §1 generated-file exception",
+            ),
+            (
+                "Resolve it before dispatch, not at commit time",
+                "§1 commit-gate preflight against task files",
+            ),
+            (
+                "you cannot upload the images yourself",
+                "§12 PR images require human browser upload",
+            ),
+            (
+                "Give the redacted copies a distinct prefix",
+                "§12 redacted PR image naming prefix",
+            ),
+            (
+                "record it as impossible, state why in one line",
+                "§13 structurally impossible named observations",
+            ),
+            (
+                "This does not upgrade the outcome: it remains non-passing",
+                "§13 impossible observation stays non-passing",
+            ),
+            (
                 "Never stop solely because controller effort is missing, weak, or unverifiable",
                 "controller effort never hard-stops",
             ),
@@ -1144,6 +1176,17 @@ def _validate_skill_and_contracts(
             (
                 "Destructive filesystem or git action",
                 "authorization boundary for destructive actions",
+            ),
+        ),
+        SKILL,
+        errors,
+    )
+    _forbid_markers(
+        skill_text,
+        (
+            (
+                "when obtainable without new credentials or policy breach",
+                "§12 soft PR-upload hedge",
             ),
         ),
         SKILL,
@@ -1248,6 +1291,10 @@ def _validate_skill_and_contracts(
             (
                 "expect it, reject it",
                 "Claude expected rejected env effort",
+            ),
+            (
+                "the ledger is a local artifact, not a reply — record it there",
+                "Claude child agent ID recorded in ledger",
             ),
             (
                 "Do not enter the inherited-controller fallback solely because effort is absent",
