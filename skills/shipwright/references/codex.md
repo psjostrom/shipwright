@@ -46,20 +46,23 @@ On model-floor failure, stop before all Shipwright artifacts and say: select **G
 
 | Shared task class | Codex normalized tier |
 | --- | --- |
-| Mechanical | Luna / Medium |
-| Ordinary | Terra / Medium |
-| Integration | Terra / High |
-| Critical | Sol / High |
+| Mechanical | Luna 5.6+ / Max |
+| Ordinary | Luna 5.6+ / Max |
+| Integration | Luna 5.6+ / Max |
+| Critical | Sol 5.6+ / High |
 
-Treat the exact observed model IDs for Luna, Terra, and Sol as the platform's current IDs only after the harness exposes them. Compare observed family and effort to the table; do not invent an ID from a display label.
+Require a resolved Luna or Sol worker model at version `5.6` or newer. Apply the controller gate's numeric major/minor comparison to the worker model ID, so compatible newer family versions pass without editing this reference while a version below `5.6` fails the worker route.
 
-Normalize the allowlisted worker families in this order:
+Treat the exact observed model IDs for Luna and Sol as the platform's current IDs only after the harness exposes them. Compare the complete observed versioned-family/effort route to the table; do not invent an ID from a display label.
+
+Normalize the complete worker routes into two tiers:
 
 ```text
-Luna < Terra < Sol
+standard: Luna 5.6+ / Max
+critical: Sol 5.6+ / High, Sol 5.6+ / xhigh, Sol 5.6+ / max
 ```
 
-A child meets a requested tier only when **both** dimensions meet their floors: its normalized model-family rank is at least the requested family rank and its normalized effort rank is at least the requested effort rank. Dimensions do not compensate for each other. For example, Sol/Medium fails a Terra/High request, while Terra/xhigh passes it and records the stronger-effort cost deviation. An unknown, generic, future, or unallowlisted model family and an unknown or absent effort label are unverified, not stronger. Apply the shared missing/conflicting-evidence transition rather than guessing a rank.
+A child meets a requested tier only when its complete observed route matches that tier or a stronger complete route above it. Sol/High or stronger therefore satisfies a standard request, while Luna below Max does not. Terra and Sol/Medium are not allowlisted Shipwright worker routes. Do not rank family and effort independently across routes or let one dimension compensate for a route the reference does not list. An unknown, generic, future, or unallowlisted model family and an unknown or absent effort label are unverified, not stronger. Apply the shared missing/conflicting-evidence transition rather than guessing a rank.
 
 ## Native dispatch and fallback
 
@@ -78,7 +81,7 @@ The current generic `spawn_agent` interface may omit model and effort selection.
 3. Require child current-turn evidence.
 4. Record `inherited correctness-first fallback` and the actual evidence.
 
-An inherited Sol child is correctness-first over-provisioning, not Luna/Terra execution and not adaptive cost routing. Never describe it as a successful cheaper-model choice.
+An inherited Sol child is correctness-first over-provisioning, not Luna execution and not adaptive cost routing. Never describe it as a successful cheaper-model choice.
 
 ## Child evidence
 

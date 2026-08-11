@@ -1084,6 +1084,31 @@ def _validate_skill_and_contracts(
                 "Never stop solely because controller effort is missing, weak, or unverifiable",
                 "Codex controller effort never hard-stops",
             ),
+            ("| Mechanical | Luna 5.6+ / Max |", "Codex worker routing mechanical"),
+            ("| Ordinary | Luna 5.6+ / Max |", "Codex worker routing ordinary"),
+            ("| Integration | Luna 5.6+ / Max |", "Codex worker routing integration"),
+            ("| Critical | Sol 5.6+ / High |", "Codex worker routing critical"),
+            (
+                "Require a resolved Luna or Sol worker model at version `5.6` or newer",
+                "Codex worker version floor",
+            ),
+            ("standard: Luna 5.6+ / Max", "Codex standard complete route"),
+            (
+                "critical: Sol 5.6+ / High, Sol 5.6+ / xhigh, Sol 5.6+ / max",
+                "Codex critical complete routes",
+            ),
+            (
+                "Sol/High or stronger therefore satisfies a standard request",
+                "Codex stronger route acceptance",
+            ),
+            (
+                "Terra and Sol/Medium are not allowlisted Shipwright worker routes",
+                "Codex worker routing exclusions",
+            ),
+            (
+                "Do not rank family and effort independently across routes",
+                "Codex complete-route ordering",
+            ),
         ),
         CODEX_REFERENCE,
         errors,

@@ -479,6 +479,64 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertTrue(any("Claude controller gate" in error for error in errors), errors)
         self.assertTrue(any("Cursor controller gate" in error for error in errors), errors)
 
+    def test_reports_codex_worker_route_regressions(self) -> None:
+        reference = "plugins/shipwright/skills/shipwright/references/codex.md"
+        original = self.path(reference).read_text(encoding="utf-8")
+        mutations = (
+            ("| Mechanical | Luna 5.6+ / Max |", "| Mechanical | Luna 5.6+ / Medium |"),
+            ("| Ordinary | Luna 5.6+ / Max |", "| Ordinary | Terra 5.6+ / Medium |"),
+            ("| Integration | Luna 5.6+ / Max |", "| Integration | Terra 5.6+ / High |"),
+            ("| Critical | Sol 5.6+ / High |", "| Critical | Luna 5.6+ / Max |"),
+        )
+        for expected, replacement in mutations:
+            with self.subTest(route=expected):
+                mutated = original.replace(expected, replacement, 1)
+                self.path(reference).write_text(mutated, encoding="utf-8")
+                self.assert_error("Codex worker routing")
+        self.path(reference).write_text(original, encoding="utf-8")
+
+    def test_reports_codex_worker_version_and_complete_route_regressions(self) -> None:
+        reference = "plugins/shipwright/skills/shipwright/references/codex.md"
+        original = self.path(reference).read_text(encoding="utf-8")
+        mutations = (
+            (
+                "Require a resolved Luna or Sol worker model at version `5.6` or newer",
+                "Accept any resolved Luna or Sol worker model version",
+                "Codex worker version floor",
+            ),
+            (
+                "Terra and Sol/Medium are not allowlisted Shipwright worker routes",
+                "Terra and Sol/Medium may be allowlisted Shipwright worker routes",
+                "Codex worker routing exclusions",
+            ),
+            (
+                "Do not rank family and effort independently across routes",
+                "Rank family and effort independently across routes",
+                "Codex complete-route ordering",
+            ),
+            (
+                "standard: Luna 5.6+ / Max",
+                "standard: Luna 5.6+ / High",
+                "Codex standard complete route",
+            ),
+            (
+                "critical: Sol 5.6+ / High, Sol 5.6+ / xhigh, Sol 5.6+ / max",
+                "critical: Sol 5.6+ / High",
+                "Codex critical complete routes",
+            ),
+            (
+                "Sol/High or stronger therefore satisfies a standard request",
+                "Only Luna/Max satisfies a standard request",
+                "Codex stronger route acceptance",
+            ),
+        )
+        for expected, replacement, error in mutations:
+            with self.subTest(contract=error):
+                mutated = original.replace(expected, replacement, 1)
+                self.path(reference).write_text(mutated, encoding="utf-8")
+                self.assert_error(error)
+        self.path(reference).write_text(original, encoding="utf-8")
+
     def test_reports_claude_exact_version_pin_regression(self) -> None:
         claude = "plugins/shipwright/skills/shipwright/references/claude-code.md"
         self.replace(

@@ -107,7 +107,7 @@ Each child receives the task brief, applicable repository instructions, base rev
 
 Take the child thread/run ID from the harness spawn result; do not require the child to self-report it. Require current-turn model from an accepted platform evidence class. Require current-turn effort when the selected route defines an effort floor; absent effort is allowed only when that route defines none, or when the selected platform reference waives the effort dimension because the harness cannot request or attribute child effort. Independently validate each reported dimension when the harness exposes the child turn/session record. Any unknown nonempty model or effort label is unverified.
 
-Use the selected platform reference's model-family and effort orders. A result is sufficient only when every required dimension independently meets its requested floor; a stronger dimension never compensates for a weaker or unknown one.
+Use the selected platform reference's route order and sufficiency rules. A result is sufficient only when its complete observed route matches the requested route or an explicitly defined stronger route. When a platform defines separate family and effort floors, every required dimension must independently meet its floor; never assemble a passing route from mismatched dimensions. An unknown dimension is never stronger.
 
 | Observed evidence | Transition |
 | --- | --- |
