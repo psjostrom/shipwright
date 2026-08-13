@@ -9,6 +9,39 @@ Shipwright is deliberately stricter than a normal implementation prompt. It
 checks the active harness and model floor, preserves unrelated work, requires
 independent review, and refuses to call incomplete QA complete.
 
+```text
+[Preflight] -> [Design + plan]
+                    |
+                    v
+[Classify + choose agent] -> [Implement] -> [Fresh review]
+
+[Fresh review]
+  +-- pass ------> [Task done]
+  +-- findings --> [Fix] -> [Fresh re-review]
+
+[Fresh re-review]
+  +-- pass ----------------> [Task done]
+  +-- findings + retry ----> back to [Fix]
+  +-- findings + no retry -> [BLOCKED]
+
+[Task done]
+  +-- next planned task --> back to [Classify + choose agent]
+  +-- all tasks done -----> [Whole-change review]
+
+[Whole-change review]
+  +-- pass ------> [Fresh verification]
+  +-- findings --> [Fix] -> [Fresh re-review]
+
+[Fresh re-review]
+  +-- pass ----------------> [Fresh verification]
+  +-- findings + retry ----> back to [Fix]
+  +-- findings + no retry -> [BLOCKED]
+
+[Fresh verification] -> [QA] -> [Finish]
+
+Remediation cap: 2 normal attempts + 1 optional escalation; else [BLOCKED].
+```
+
 The shared contract lives in
 [`plugins/shipwright/skills/shipwright/SKILL.md`](../../plugins/shipwright/skills/shipwright/SKILL.md). Harness-specific
 runtime and dispatch rules live in
