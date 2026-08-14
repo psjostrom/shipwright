@@ -45,6 +45,10 @@ DEFAULT_PROMPT = (
     "Use $shipwright:shipwright to build this feature end to end with independent "
     "review and real verification."
 )
+CODEX_INSTALL_ROUTE = (
+    "codex plugin marketplace add psjostrom/agent-plugins\n"
+    "codex plugin add shipwright@agent-plugins"
+)
 
 def _has_cursor_invocation(text: str) -> bool:
     """True when text contains bare /shipwright, not only /shipwright:shipwright."""
@@ -1185,6 +1189,10 @@ def _validate_openai_metadata(metadata_text: Optional[str], errors: list[str]) -
 def _validate_readme(readme_text: Optional[str], errors: list[str]) -> list[str]:
     if readme_text is None:
         return []
+    if CODEX_INSTALL_ROUTE not in readme_text:
+        errors.append(
+            f"{_display(README)}: Codex install route must use the agent-plugins catalog"
+        )
     bullets = [line for line in readme_text.splitlines() if line.startswith("- `shipwright`")]
     if len(bullets) != 1:
         errors.append(f"{_display(README)}: must contain exactly one Shipwright plugin bullet")
@@ -1225,6 +1233,7 @@ def _validate_stale_names(
         for directory, directory_names, file_names in os.walk(
             plugin_root, onerror=report_walk_error
         ):
+            directory_names[:] = [name for name in directory_names if name != ".git"]
             directory_names.sort()
             for filename in sorted(file_names):
                 path = Path(directory) / filename

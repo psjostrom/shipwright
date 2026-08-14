@@ -391,6 +391,14 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.write_json(relative_path, manifest)
                 self.assert_error(relative_path)
 
+    def test_requires_catalog_based_codex_install_route(self) -> None:
+        self.replace(
+            "README.md",
+            validator.CODEX_INSTALL_ROUTE,
+            "codex plugin add shipwright",
+        )
+        self.assert_error("Codex install route")
+
     def test_reports_missing_public_invocation_identifiers(self) -> None:
         skill_path = "skills/shipwright/SKILL.md"
         readme_path = "README.md"
@@ -1261,6 +1269,12 @@ class ShipwrightValidatorTests(unittest.TestCase):
         binary = self.path("image.bin")
         legacy_skill = "-".join(("full", "dev")).encode()
         binary.write_bytes(b"\x00$" + legacy_skill)
+        self.assertEqual([], validate_bundle(self.repo_root))
+
+    def test_stale_scan_ignores_git_metadata(self) -> None:
+        git_object = self.path(".git/objects/aa/object")
+        git_object.parent.mkdir(parents=True)
+        git_object.write_bytes(b"\xff")
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_stale_scan_covers_historical_documents_inside_repository_root(self) -> None:

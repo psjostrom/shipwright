@@ -347,13 +347,12 @@ without authorization.
 
 ### Codex
 
-Install Shipwright from this repository, then start a new task. The
-[agent-plugins catalog](https://github.com/psjostrom/agent-plugins) is also an
-installation route where supported.
+Install through the Shipwright entry in the thin `agent-plugins` catalog, then
+start a new task:
 
 ```sh
-codex plugin marketplace add https://github.com/psjostrom/shipwright
-codex plugin add shipwright
+codex plugin marketplace add psjostrom/agent-plugins
+codex plugin add shipwright@agent-plugins
 ```
 
 Invoke `$shipwright:shipwright`. Codex dispatches with its collaboration
