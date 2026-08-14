@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 
-PLUGIN_ROOT = Path("plugins/shipwright")
+PLUGIN_ROOT = Path(".")
 CODEX_MANIFEST = PLUGIN_ROOT / ".codex-plugin/plugin.json"
 CLAUDE_MANIFEST = PLUGIN_ROOT / ".claude-plugin/plugin.json"
 CURSOR_MANIFEST = PLUGIN_ROOT / ".cursor-plugin/plugin.json"
@@ -19,9 +19,6 @@ OPENAI_METADATA = PLUGIN_ROOT / "skills/shipwright/agents/openai.yaml"
 CODEX_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/codex.md"
 CLAUDE_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/claude-code.md"
 CURSOR_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/cursor.md"
-CODEX_MARKETPLACE = Path(".agents/plugins/marketplace.json")
-CLAUDE_MARKETPLACE = Path(".claude-plugin/marketplace.json")
-CURSOR_MARKETPLACE = Path(".cursor-plugin/marketplace.json")
 README = Path("README.md")
 
 DESCRIPTION = (
@@ -140,7 +137,7 @@ def _validate_manifests(
         _require_equal(
             codex,
             ("repository",),
-            "https://github.com/psjostrom/agent-plugins",
+            "https://github.com/psjostrom/shipwright",
             "Codex manifest repository",
             CODEX_MANIFEST,
             errors,
@@ -212,7 +209,7 @@ def _validate_manifests(
         _require_equal(
             cursor,
             ("repository",),
-            "https://github.com/psjostrom/agent-plugins",
+            "https://github.com/psjostrom/shipwright",
             "Cursor manifest repository",
             CURSOR_MANIFEST,
             errors,
@@ -222,124 +219,6 @@ def _validate_manifests(
     elif cursor is not None:
         errors.append(f"{_display(CURSOR_MANIFEST)}: Cursor manifest root must be a JSON object")
 
-
-def _marketplace_entry(
-    catalog: Any, label: str, source_path: Path, errors: list[str]
-) -> Optional[dict[str, Any]]:
-    if not isinstance(catalog, dict) or not isinstance(catalog.get("plugins"), list):
-        if catalog is not None:
-            errors.append(
-                f"{_display(source_path)}: {label} marketplace must contain a plugins list"
-            )
-        return None
-    matches = [
-        item
-        for item in catalog["plugins"]
-        if isinstance(item, dict) and item.get("name") == "shipwright"
-    ]
-    if len(matches) != 1:
-        errors.append(
-            f"{_display(source_path)}: {label} marketplace must contain exactly one "
-            "shipwright entry"
-        )
-        return None
-    return matches[0]
-
-
-def _validate_marketplaces(
-    codex_catalog: Any, claude_catalog: Any, cursor_catalog: Any, errors: list[str]
-) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]], Optional[dict[str, Any]]]:
-    codex = _marketplace_entry(codex_catalog, "Codex", CODEX_MARKETPLACE, errors)
-    claude = _marketplace_entry(claude_catalog, "Claude", CLAUDE_MARKETPLACE, errors)
-    cursor = _marketplace_entry(cursor_catalog, "Cursor", CURSOR_MARKETPLACE, errors)
-    if codex is not None:
-        _require_equal(codex, ("name",), "shipwright", "Codex marketplace name", CODEX_MARKETPLACE, errors)
-        _require_equal(codex, ("source", "source"), "local", "Codex marketplace source.source", CODEX_MARKETPLACE, errors)
-        _require_equal(
-            codex,
-            ("source", "path"),
-            "./plugins/shipwright",
-            "Codex marketplace source.path",
-            CODEX_MARKETPLACE,
-            errors,
-        )
-        _require_equal(
-            codex,
-            ("policy", "installation"),
-            "AVAILABLE",
-            "Codex marketplace policy.installation",
-            CODEX_MARKETPLACE,
-            errors,
-        )
-        _require_equal(
-            codex,
-            ("policy", "authentication"),
-            "ON_INSTALL",
-            "Codex marketplace policy.authentication",
-            CODEX_MARKETPLACE,
-            errors,
-        )
-        _require_equal(codex, ("category",), "Developer Tools", "Codex marketplace category", CODEX_MARKETPLACE, errors)
-    if claude is not None:
-        expectations = {
-            "name": "shipwright",
-            "source": "./plugins/shipwright",
-            "description": DESCRIPTION,
-            "keywords": KEYWORDS,
-            "category": "development",
-        }
-        for key, expected in expectations.items():
-            _require_equal(
-                claude,
-                (key,),
-                expected,
-                f"Claude marketplace {key}",
-                CLAUDE_MARKETPLACE,
-                errors,
-            )
-        # Same SHA-tracked policy as the Claude plugin.json — version pins from
-        # either location, so the marketplace entry must omit it too.
-        if "version" in claude:
-            errors.append(
-                f"{_display(CLAUDE_MARKETPLACE)}: Claude marketplace shipwright "
-                f"entry must omit version (SHA-tracked delivery); "
-                f"found {claude.get('version')!r}"
-            )
-        _require_equal(
-            claude,
-            ("author", "name"),
-            "psjostrom",
-            "Claude marketplace author.name",
-            CLAUDE_MARKETPLACE,
-            errors,
-        )
-    if cursor is not None:
-        expectations = {
-            "name": "shipwright",
-            "source": "./plugins/shipwright",
-            "description": DESCRIPTION,
-            "version": "1.0.0",
-            "keywords": KEYWORDS,
-            "category": "development",
-        }
-        for key, expected in expectations.items():
-            _require_equal(
-                cursor,
-                (key,),
-                expected,
-                f"Cursor marketplace {key}",
-                CURSOR_MARKETPLACE,
-                errors,
-            )
-        _require_equal(
-            cursor,
-            ("author", "name"),
-            "psjostrom",
-            "Cursor marketplace author.name",
-            CURSOR_MARKETPLACE,
-            errors,
-        )
-    return codex, claude, cursor
 
 
 def _parse_yaml_scalar(
@@ -641,7 +520,7 @@ def _validate_skill_and_contracts(
     cursor_text: Optional[str],
     errors: list[str],
 ) -> None:
-    skill_root = repo_root / PLUGIN_ROOT
+    skill_root = repo_root
     if skill_root.is_dir():
         skill_files = sorted(
             path.relative_to(repo_root).as_posix() for path in skill_root.rglob("SKILL.md")
@@ -1329,14 +1208,9 @@ def _contains_stale_name(text: str) -> bool:
 
 
 def _validate_stale_names(
-    repo_root: Path,
-    codex_entry: Optional[dict[str, Any]],
-    claude_entry: Optional[dict[str, Any]],
-    cursor_entry: Optional[dict[str, Any]],
-    readme_bullets: list[str],
-    errors: list[str],
+    repo_root: Path, readme_bullets: list[str], errors: list[str]
 ) -> None:
-    plugin_root = repo_root / PLUGIN_ROOT
+    plugin_root = repo_root
     if plugin_root.is_dir():
         def report_walk_error(exc: OSError) -> None:
             failed_path = Path(exc.filename) if exc.filename else plugin_root
@@ -1382,16 +1256,6 @@ def _validate_stale_names(
                         f"{_display(relative_path)}"
                     )
 
-    for relative_path, entry in (
-        (CODEX_MARKETPLACE, codex_entry),
-        (CLAUDE_MARKETPLACE, claude_entry),
-        (CURSOR_MARKETPLACE, cursor_entry),
-    ):
-        if entry is not None and _contains_stale_name(json.dumps(entry, sort_keys=True)):
-            errors.append(
-                f"stale public name/profile dependency in {_display(relative_path)} "
-                "Shipwright marketplace entry"
-            )
     if any(_contains_stale_name(line) for line in readme_bullets):
         errors.append(
             f"stale public name/profile dependency in {_display(README)} Shipwright bullet"
@@ -1407,9 +1271,6 @@ def validate_bundle(repo_root: Path) -> list[str]:
     codex_manifest = _load_json(repo_root, CODEX_MANIFEST, errors)
     claude_manifest = _load_json(repo_root, CLAUDE_MANIFEST, errors)
     cursor_manifest = _load_json(repo_root, CURSOR_MANIFEST, errors)
-    codex_catalog = _load_json(repo_root, CODEX_MARKETPLACE, errors)
-    claude_catalog = _load_json(repo_root, CLAUDE_MARKETPLACE, errors)
-    cursor_catalog = _load_json(repo_root, CURSOR_MARKETPLACE, errors)
 
     skill_text = _read_text(repo_root, SKILL, errors)
     openai_text = _read_text(repo_root, OPENAI_METADATA, errors)
@@ -1419,9 +1280,6 @@ def validate_bundle(repo_root: Path) -> list[str]:
     readme_text = _read_text(repo_root, README, errors)
 
     _validate_manifests(codex_manifest, claude_manifest, cursor_manifest, errors)
-    codex_entry, claude_entry, cursor_entry = _validate_marketplaces(
-        codex_catalog, claude_catalog, cursor_catalog, errors
-    )
     _validate_skill_and_contracts(
         repo_root,
         skill_text,
@@ -1432,15 +1290,13 @@ def validate_bundle(repo_root: Path) -> list[str]:
     )
     _validate_openai_metadata(openai_text, errors)
     readme_bullets = _validate_readme(readme_text, errors)
-    _validate_stale_names(
-        repo_root, codex_entry, claude_entry, cursor_entry, readme_bullets, errors
-    )
+    _validate_stale_names(repo_root, readme_bullets, errors)
 
     return errors
 
 
 def _repository_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    return Path(__file__).resolve().parents[1]
 
 
 def main() -> int:

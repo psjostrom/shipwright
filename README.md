@@ -43,9 +43,9 @@ Remediation cap: 2 normal attempts + 1 optional escalation; else [BLOCKED].
 ```
 
 The shared contract lives in
-[`plugins/shipwright/skills/shipwright/SKILL.md`](../../plugins/shipwright/skills/shipwright/SKILL.md). Harness-specific
+[`skills/shipwright/SKILL.md`](skills/shipwright/SKILL.md). Harness-specific
 runtime and dispatch rules live in
-[`plugins/shipwright/skills/shipwright/references/`](../../plugins/shipwright/skills/shipwright/references/).
+[`skills/shipwright/references/`](skills/shipwright/references/).
 
 ## When to use it
 
@@ -70,7 +70,8 @@ platform reference, fresh verification, and applicable QA still apply.
 | Codex | `Use $shipwright:shipwright to build this feature end to end ...` |
 | Claude Code | `/shipwright:shipwright` |
 | Cursor | `/shipwright` |
-| opencode | No port |
+
+- `shipwright` — Codex: `$shipwright:shipwright`; Claude Code: `/shipwright:shipwright`, or `/shipwright` in Cursor.
 
 Examples:
 
@@ -346,11 +347,13 @@ without authorization.
 
 ### Codex
 
-Install the local marketplace and plugin, then start a new task:
+Install Shipwright from this repository, then start a new task. The
+[agent-plugins catalog](https://github.com/psjostrom/agent-plugins) is also an
+installation route where supported.
 
 ```sh
-codex plugin marketplace add .
-codex plugin add shipwright@agent-plugins
+codex plugin marketplace add https://github.com/psjostrom/shipwright
+codex plugin add shipwright
 ```
 
 Invoke `$shipwright:shipwright`. Codex dispatches with its collaboration
@@ -360,7 +363,7 @@ floor passes.
 
 ### Claude Code
 
-Install `shipwright` and invoke `/shipwright:shipwright`. The controller gate
+Install this repository as a Claude Code plugin and invoke `/shipwright:shipwright`. The controller gate
 requires a resolved Opus `4.6+`; specialist routing defaults to Haiku for
 mechanical work, Sonnet for ordinary/integration work, and Opus for critical
 work. Claude child report text is persisted by the controller because its
@@ -368,16 +371,12 @@ subagent tooling does not let children write report files.
 
 ### Cursor
 
-Install Shipwright from the marketplace and Superpowers `6.1.1+` separately.
+Install this repository as a Cursor plugin and Superpowers `6.1.1+` separately.
 Invoke `/shipwright`. The controller gate requires a model resolved to Grok
 `4.5` or newer.
 Cursor maps mechanical/ordinary work to Composer and integration/critical work
 to Grok, with the effort floors shown above. Do not describe GPT Luna/Terra/Sol
 as Cursor worker runtimes; they are not allowlisted here.
-
-### opencode
-
-There is no opencode port. Do not invoke Shipwright through opencode.
 
 ## Source map
 
@@ -397,11 +396,11 @@ There is no opencode port. Do not invoke Shipwright through opencode.
 After changing Shipwright platform files, run:
 
 ```sh
-python3 plugins/shipwright/scripts/validate_shipwright.py
+python3 scripts/validate_shipwright.py
 ```
 
 After changing validator logic, also run:
 
 ```sh
-python3 -m unittest plugins/shipwright/scripts/test_validate_shipwright.py
+python3 -m unittest scripts/test_validate_shipwright.py
 ```

@@ -15,7 +15,7 @@ from unittest import mock
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPOSITORY_ROOT = SCRIPT_DIR.parents[2]
+REPOSITORY_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import validate_shipwright as validator  # noqa: E402
@@ -30,18 +30,11 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.repo_root = Path(self.temporary_directory.name)
 
         shutil.copytree(
-            REPOSITORY_ROOT / "plugins" / "shipwright",
-            self.repo_root / "plugins" / "shipwright",
+            REPOSITORY_ROOT,
+            self.repo_root,
+            ignore=shutil.ignore_patterns(".git", "__pycache__"),
+            dirs_exist_ok=True,
         )
-        for relative_path in (
-            Path(".agents/plugins/marketplace.json"),
-            Path(".claude-plugin/marketplace.json"),
-            Path(".cursor-plugin/marketplace.json"),
-            Path("README.md"),
-        ):
-            destination = self.repo_root / relative_path
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
 
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
@@ -75,18 +68,15 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_reports_malformed_json(self) -> None:
-        path = self.path("plugins/shipwright/.codex-plugin/plugin.json")
+        path = self.path(".codex-plugin/plugin.json")
         path.write_text("{not-json\n", encoding="utf-8")
         self.assert_error("malformed JSON")
 
-    def test_reports_every_missing_manifest_and_catalog(self) -> None:
+    def test_reports_every_missing_manifest(self) -> None:
         paths = (
-            "plugins/shipwright/.codex-plugin/plugin.json",
-            "plugins/shipwright/.claude-plugin/plugin.json",
-            "plugins/shipwright/.cursor-plugin/plugin.json",
-            ".agents/plugins/marketplace.json",
-            ".claude-plugin/marketplace.json",
-            ".cursor-plugin/marketplace.json",
+            ".codex-plugin/plugin.json",
+            ".claude-plugin/plugin.json",
+            ".cursor-plugin/plugin.json",
         )
         for relative_path in paths:
             with self.subTest(path=relative_path):
@@ -98,11 +88,11 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
     def test_reports_missing_skill_references_and_openai_metadata(self) -> None:
         paths = (
-            "plugins/shipwright/skills/shipwright/SKILL.md",
-            "plugins/shipwright/skills/shipwright/references/codex.md",
-            "plugins/shipwright/skills/shipwright/references/claude-code.md",
-            "plugins/shipwright/skills/shipwright/references/cursor.md",
-            "plugins/shipwright/skills/shipwright/agents/openai.yaml",
+            "skills/shipwright/SKILL.md",
+            "skills/shipwright/references/codex.md",
+            "skills/shipwright/references/claude-code.md",
+            "skills/shipwright/references/cursor.md",
+            "skills/shipwright/agents/openai.yaml",
         )
         for relative_path in paths:
             with self.subTest(path=relative_path):
@@ -113,7 +103,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
                     moved.rename(self.path(relative_path))
 
     def test_requires_disable_model_invocation_frontmatter(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(skill, "disable-model-invocation: true", "disable-model-invocation: false")
         self.assert_error("disable-model-invocation")
         self.replace(skill, "disable-model-invocation: false", "disable-model-invocation: true")
@@ -122,9 +112,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
     def test_reports_wrong_manifest_names(self) -> None:
         for relative_path in (
-            "plugins/shipwright/.codex-plugin/plugin.json",
-            "plugins/shipwright/.claude-plugin/plugin.json",
-            "plugins/shipwright/.cursor-plugin/plugin.json",
+            ".codex-plugin/plugin.json",
+            ".claude-plugin/plugin.json",
+            ".cursor-plugin/plugin.json",
         ):
             with self.subTest(path=relative_path):
                 manifest = self.read_json(relative_path)
@@ -135,9 +125,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.write_json(relative_path, manifest)
 
     def test_manifest_versions_follow_platform_specific_contracts(self) -> None:
-        codex_path = "plugins/shipwright/.codex-plugin/plugin.json"
-        claude_path = "plugins/shipwright/.claude-plugin/plugin.json"
-        claude_marketplace_path = ".claude-plugin/marketplace.json"
+        codex_path = ".codex-plugin/plugin.json"
+        claude_path = ".claude-plugin/plugin.json"
 
         codex = self.read_json(codex_path)
         codex["version"] = "1.0.0+codex.local-20260720-120000"
@@ -175,19 +164,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         claude.pop("version", None)
         self.write_json(claude_path, claude)
 
-        claude_catalog = self.read_json(claude_marketplace_path)
-        shipwright_entry = next(
-            item for item in claude_catalog["plugins"] if item["name"] == "shipwright"
-        )
-        self.assertNotIn("version", shipwright_entry)
-        shipwright_entry["version"] = "1.0.0"
-        self.write_json(claude_marketplace_path, claude_catalog)
-        errors = self.assert_error(claude_marketplace_path)
-        self.assertTrue(any("must omit version" in error for error in errors), errors)
-        del shipwright_entry["version"]
-        self.write_json(claude_marketplace_path, claude_catalog)
-
-        cursor_path = "plugins/shipwright/.cursor-plugin/plugin.json"
+        cursor_path = ".cursor-plugin/plugin.json"
         cursor = self.read_json(cursor_path)
         for invalid in ("1.0.1", "1.0.0-dev", "1.0.0+codex.local-1"):
             with self.subTest(platform="cursor", version=invalid):
@@ -198,19 +175,19 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
     def test_reports_wrong_skill_frontmatter_name(self) -> None:
         self.replace(
-            "plugins/shipwright/skills/shipwright/SKILL.md",
+            "skills/shipwright/SKILL.md",
             "name: shipwright",
             "name: wrong-name",
         )
         self.assert_error("frontmatter name")
 
     def test_skill_frontmatter_accepts_supported_quotes(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(skill, "name: shipwright", 'name: "shipwright"')
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_skill_frontmatter_delimiters_must_start_at_column_zero(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         mutations = {
             "opening": "  " + original,
@@ -223,7 +200,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_yaml_scalars_accept_inline_comments_trailing_space_and_boolean_case(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(skill, "name: shipwright", "name: shipwright   # canonical skill name")
         self.replace(
             skill,
@@ -231,7 +208,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             f"description: {validator.SKILL_DESCRIPTION}   # activation contract   ",
         )
 
-        metadata = "plugins/shipwright/skills/shipwright/agents/openai.yaml"
+        metadata = "skills/shipwright/agents/openai.yaml"
         self.replace(
             metadata,
             'display_name: "Shipwright"',
@@ -296,13 +273,13 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertEqual({"metadata": {"value": "present"}}, frontmatter)
 
     def test_openai_metadata_accepts_commented_mapping_keys(self) -> None:
-        metadata = "plugins/shipwright/skills/shipwright/agents/openai.yaml"
+        metadata = "skills/shipwright/agents/openai.yaml"
         self.replace(metadata, "interface:\n", "interface: # UI fields\n")
         self.replace(metadata, "policy:\n", "policy: # invocation policy\n")
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_skill_frontmatter_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         mutations = {
             "commented": original.replace("name: shipwright", "# name: shipwright", 1),
@@ -324,15 +301,15 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_reports_wrong_codex_skills_path(self) -> None:
-        path = "plugins/shipwright/.codex-plugin/plugin.json"
+        path = ".codex-plugin/plugin.json"
         manifest = self.read_json(path)
         manifest["skills"] = "./other-skills/"
         self.write_json(path, manifest)
         self.assert_error("skills")
 
     def test_reports_invalid_manifest_and_codex_interface_metadata(self) -> None:
-        codex_path = "plugins/shipwright/.codex-plugin/plugin.json"
-        claude_path = "plugins/shipwright/.claude-plugin/plugin.json"
+        codex_path = ".codex-plugin/plugin.json"
+        claude_path = ".claude-plugin/plugin.json"
         codex = self.read_json(codex_path)
         claude = self.read_json(claude_path)
         del codex["repository"]
@@ -347,14 +324,14 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
     def test_reports_invalid_openai_metadata(self) -> None:
         self.replace(
-            "plugins/shipwright/skills/shipwright/agents/openai.yaml",
+            "skills/shipwright/agents/openai.yaml",
             "allow_implicit_invocation: false",
             "allow_implicit_invocation: true",
         )
         self.assert_error("allow_implicit_invocation")
 
     def test_openai_metadata_accepts_supported_unquoted_scalars(self) -> None:
-        metadata = "plugins/shipwright/skills/shipwright/agents/openai.yaml"
+        metadata = "skills/shipwright/agents/openai.yaml"
         content = self.path(metadata).read_text(encoding="utf-8")
         content = content.replace('display_name: "Shipwright"', "display_name: Shipwright")
         content = content.replace(
@@ -369,7 +346,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_openai_metadata_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
-        metadata = "plugins/shipwright/skills/shipwright/agents/openai.yaml"
+        metadata = "skills/shipwright/agents/openai.yaml"
         original = self.path(metadata).read_text(encoding="utf-8")
         mutations = {
             "commented": "\n".join(
@@ -403,25 +380,19 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assert_error(metadata)
         self.path(metadata).write_text(original, encoding="utf-8")
 
-    def test_reports_wrong_marketplace_paths_and_codex_policies(self) -> None:
-        codex_path = ".agents/plugins/marketplace.json"
-        claude_path = ".claude-plugin/marketplace.json"
-        codex = self.read_json(codex_path)
-        claude = self.read_json(claude_path)
-        codex_entry = next(item for item in codex["plugins"] if item["name"] == "shipwright")
-        claude_entry = next(item for item in claude["plugins"] if item["name"] == "shipwright")
-        codex_entry["source"]["path"] = "/absolute/shipwright"
-        codex_entry["policy"]["installation"] = "REQUIRED"
-        codex_entry["policy"]["authentication"] = "NONE"
-        claude_entry["source"] = "../shipwright"
-        self.write_json(codex_path, codex)
-        self.write_json(claude_path, claude)
-        errors = validate_bundle(self.repo_root)
-        for fragment in ("source.path", "installation", "authentication", "source"):
-            self.assertTrue(any(fragment in error for error in errors), errors)
+    def test_reports_wrong_standalone_manifest_repository(self) -> None:
+        for relative_path in (
+            ".codex-plugin/plugin.json",
+            ".cursor-plugin/plugin.json",
+        ):
+            with self.subTest(path=relative_path):
+                manifest = self.read_json(relative_path)
+                manifest["repository"] = "https://github.com/psjostrom/agent-plugins"
+                self.write_json(relative_path, manifest)
+                self.assert_error(relative_path)
 
     def test_reports_missing_public_invocation_identifiers(self) -> None:
-        skill_path = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill_path = "skills/shipwright/SKILL.md"
         readme_path = "README.md"
         self.replace(skill_path, "$shipwright:shipwright", "$shipwright")
         self.replace(skill_path, "/shipwright:shipwright", "/shipwright")
@@ -434,7 +405,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertTrue(any("Cursor invocation" in error for error in errors), errors)
 
     def test_cursor_invocation_not_satisfied_by_claude_path_alone(self) -> None:
-        skill_path = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill_path = "skills/shipwright/SKILL.md"
         readme_path = "README.md"
         self.replace(skill_path, ", or `/shipwright` in Cursor", "")
         self.replace(readme_path, ", or `/shipwright` in Cursor", "")
@@ -453,24 +424,24 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
 
     def test_reports_duplicate_skill_workflow_surface(self) -> None:
-        duplicate = self.path("plugins/shipwright/platform/codex/SKILL.md")
+        duplicate = self.path("platform/codex/SKILL.md")
         duplicate.parent.mkdir(parents=True)
         duplicate.write_text("# duplicate workflow\n", encoding="utf-8")
         self.assert_error("exactly one SKILL.md")
 
     def test_reports_missing_controller_gate_contracts(self) -> None:
         self.replace(
-            "plugins/shipwright/skills/shipwright/references/codex.md",
+            "skills/shipwright/references/codex.md",
             "gpt-5.6-sol",
             "gpt-other",
         )
         self.replace(
-            "plugins/shipwright/skills/shipwright/references/claude-code.md",
+            "skills/shipwright/references/claude-code.md",
             "claude-opus-4-6",
             "claude-other",
         )
         self.replace(
-            "plugins/shipwright/skills/shipwright/references/cursor.md",
+            "skills/shipwright/references/cursor.md",
             "Grok 4.5",
             "Grok-other",
         )
@@ -480,7 +451,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertTrue(any("Cursor controller gate" in error for error in errors), errors)
 
     def test_reports_codex_worker_route_regressions(self) -> None:
-        reference = "plugins/shipwright/skills/shipwright/references/codex.md"
+        reference = "skills/shipwright/references/codex.md"
         original = self.path(reference).read_text(encoding="utf-8")
         mutations = (
             ("| Mechanical | Luna 5.6+ / Max |", "| Mechanical | Luna 5.6+ / Medium |"),
@@ -496,7 +467,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(reference).write_text(original, encoding="utf-8")
 
     def test_reports_codex_worker_version_and_complete_route_regressions(self) -> None:
-        reference = "plugins/shipwright/skills/shipwright/references/codex.md"
+        reference = "skills/shipwright/references/codex.md"
         original = self.path(reference).read_text(encoding="utf-8")
         mutations = (
             (
@@ -538,7 +509,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(reference).write_text(original, encoding="utf-8")
 
     def test_reports_claude_exact_version_pin_regression(self) -> None:
-        claude = "plugins/shipwright/skills/shipwright/references/claude-code.md"
+        claude = "skills/shipwright/references/claude-code.md"
         self.replace(
             claude,
             "Require a resolved Opus model at version `4.6` or newer.",
@@ -558,7 +529,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_cursor_family_only_effort_contracts(self) -> None:
-        cursor = "plugins/shipwright/skills/shipwright/references/cursor.md"
+        cursor = "skills/shipwright/references/cursor.md"
         self.replace(cursor, "Cursor Grok 4.5", "Cursor Grok-other")
         self.replace(cursor, "family dimension only", "model identity only")
         self.replace(cursor, "Compose dimensions", "Merge evidence")
@@ -577,7 +548,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_child_evidence_and_retry_contracts(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(skill, "BLOCKED_RUNTIME", "RUNTIME_STOP")
         self.replace(skill, "one fallback per gated role", "fallback when useful")
         self.replace(skill, "thread/run ID", "child identifier")
@@ -614,7 +585,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_gate_before_reduction_contracts(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(
             skill,
             "including before any §3 reduction",
@@ -633,7 +604,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_reduction_verification_surface_contracts(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(
             skill,
             "and the verification surface it can affect is narrow",
@@ -652,7 +623,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_reduced_path_project_config_contract(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(
             skill,
             "do not create or modify project-level configuration",
@@ -668,7 +639,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
 
     def test_reports_missing_linked_controller_effort_pr_disclosure(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         cases = (
             (
@@ -704,7 +675,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_reports_missing_field_report_contract_markers(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         cases = (
             (
@@ -810,7 +781,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_rejects_weakened_verified_definition_contract(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         full = (
             "- `verified`: every mandatory observation and artifact exists and the "
@@ -852,7 +823,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_reports_missing_claude_controller_child_report_actions(self) -> None:
-        claude = "plugins/shipwright/skills/shipwright/references/claude-code.md"
+        claude = "skills/shipwright/references/claude-code.md"
         original = self.path(claude).read_text(encoding="utf-8")
         cases = (
             (
@@ -900,7 +871,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(claude).write_text(original, encoding="utf-8")
 
     def test_reports_missing_post_plan_handoff_override(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(
             skill,
             "do not present Superpowers `writing-plans` execution options",
@@ -931,7 +902,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_review_and_bounded_remediation_contracts(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(skill, "fresh independent reviewer", "reviewer")
         self.replace(skill, "at most two ordinary remediation cycles", "several cycles")
         self.replace(skill, "one final escalated attempt", "escalate if needed")
@@ -980,7 +951,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_qa_routes_and_terminal_states(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         for old, new in (
             ("agent-browser", "browser-tool"),
             ("Playwright", "browser-regression-tool"),
@@ -1002,7 +973,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_missing_argent_mcp_probe_contracts(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         self.replace(
             skill,
             "loaded argent MCP toolset",
@@ -1021,7 +992,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             self.assertTrue(any(fragment in error for error in errors), errors)
 
     def test_reports_each_missing_standalone_qa_outcome_definition(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         definitions = (
             "- `verified`: every mandatory observation and artifact exists and the flow passed; for visual surfaces this includes the published session evidence (absolute QA path plus diff/observation numbers in the completion report).\n",
@@ -1038,7 +1009,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_qa_outcome_definitions_must_be_active_markdown(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         definitions = (
             "- `verified`: every mandatory observation and artifact exists and the flow passed; for visual surfaces this includes the published session evidence (absolute QA path plus diff/observation numbers in the completion report).\n",
@@ -1062,7 +1033,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_indented_code_cannot_supply_qa_outcome_definitions(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         definitions = (
             "- `verified`: every mandatory observation and artifact exists and the flow passed; for visual surfaces this includes the published session evidence (absolute QA path plus diff/observation numbers in the completion report).\n",
@@ -1083,7 +1054,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_fenced_literal_html_comment_does_not_hide_active_qa_definitions(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         marker = "## 13. Record QA outcomes\n"
         for label, fenced_literal in (
@@ -1099,19 +1070,19 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_inline_code_literal_html_comment_does_not_hide_active_qa_definitions(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         marker = "## 13. Record QA outcomes\n"
         self.replace(skill, marker, "`<!-- literal code text`\n\n" + marker)
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_invalid_backtick_info_string_does_not_hide_active_qa_definitions(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         marker = "## 13. Record QA outcomes\n"
         self.replace(skill, marker, "```text`invalid\n\n" + marker)
         self.assertEqual([], validate_bundle(self.repo_root))
 
     def test_qa_outcome_fences_preserve_marker_length_and_indentation_rules(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         definition = (
             "- `verified`: every mandatory observation and artifact exists and the flow passed; for visual surfaces this includes the published session evidence (absolute QA path plus diff/observation numbers in the completion report).\n"
@@ -1135,7 +1106,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_reports_missing_authorization_boundaries(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         for old, new in (
             ("Restore declared project state", "Ignore declared project state"),
             (
@@ -1153,7 +1124,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
 
     def test_reports_missing_restoration_proof_contract(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         cases = (
             (
@@ -1184,7 +1155,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(skill).write_text(original, encoding="utf-8")
 
     def test_reports_stale_public_name_and_profile_dependency(self) -> None:
-        skill = "plugins/shipwright/skills/shipwright/SKILL.md"
+        skill = "skills/shipwright/SKILL.md"
         path = self.path(skill)
         original = path.read_text(encoding="utf-8")
         legacy_skill = "-".join(("full", "dev"))
@@ -1201,8 +1172,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
         stale_forms = ("$" + legacy_skill, "/" + legacy_skill, legacy_skill + "-worker")
 
         plugin_paths = (
-            "plugins/shipwright/legacy-profile.toml",
-            "plugins/shipwright/legacy-command",
+            "legacy-profile.toml",
+            "legacy-command",
         )
         for relative_path in plugin_paths:
             for stale in stale_forms:
@@ -1211,23 +1182,6 @@ class ShipwrightValidatorTests(unittest.TestCase):
                     path.write_text(stale + "\n", encoding="utf-8")
                     self.assert_error(relative_path)
                     path.unlink()
-
-        for relative_path in (
-            ".agents/plugins/marketplace.json",
-            ".claude-plugin/marketplace.json",
-            ".cursor-plugin/marketplace.json",
-        ):
-            original = self.read_json(relative_path)
-            for stale in stale_forms:
-                with self.subTest(surface=relative_path, stale=stale):
-                    catalog = json.loads(json.dumps(original))
-                    entry = next(
-                        item for item in catalog["plugins"] if item["name"] == "shipwright"
-                    )
-                    entry["legacy_probe"] = stale
-                    self.write_json(relative_path, catalog)
-                    self.assert_error(relative_path)
-            self.write_json(relative_path, original)
 
         readme = "README.md"
         original_readme = self.path(readme).read_text(encoding="utf-8")
@@ -1244,12 +1198,12 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(readme).write_text(original_readme, encoding="utf-8")
 
     def test_stale_scan_reports_undecodable_and_unreadable_scoped_files(self) -> None:
-        undecodable = self.path("plugins/shipwright/undecodable.asset")
+        undecodable = self.path("undecodable.asset")
         undecodable.write_bytes(b"\xff\xfe\xfd")
-        self.assert_error("cannot inspect plugins/shipwright/undecodable.asset")
+        self.assert_error("cannot inspect undecodable.asset")
         undecodable.unlink()
 
-        unreadable = self.path("plugins/shipwright/unreadable.asset")
+        unreadable = self.path("unreadable.asset")
         unreadable.write_text("ordinary text\n", encoding="utf-8")
         original_read_bytes = Path.read_bytes
 
@@ -1259,10 +1213,10 @@ class ShipwrightValidatorTests(unittest.TestCase):
             return original_read_bytes(path)
 
         with mock.patch.object(Path, "read_bytes", autospec=True, side_effect=fail_selected):
-            self.assert_error("cannot inspect plugins/shipwright/unreadable.asset")
+            self.assert_error("cannot inspect unreadable.asset")
 
     def test_stale_scan_reports_unreadable_scoped_directory_when_permissions_apply(self) -> None:
-        blocked = self.path("plugins/shipwright/unreadable-directory")
+        blocked = self.path("unreadable-directory")
         blocked.mkdir()
         legacy_skill = "-".join(("full", "dev"))
         (blocked / "legacy-command").write_text("$" + legacy_skill + "\n", encoding="utf-8")
@@ -1272,7 +1226,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         finally:
             blocked.chmod(0o700)
         expected_fragment = (
-            "cannot inspect directory plugins/shipwright/unreadable-directory"
+            "cannot inspect directory unreadable-directory"
         )
         if not any(expected_fragment in error for error in errors):
             self.skipTest("runtime can enumerate mode-000 directories")
@@ -1282,10 +1236,10 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
 
     def test_stale_scan_reports_directory_enumeration_errors_through_walk_boundary(self) -> None:
-        failed = self.path("plugins/shipwright/unreadable-directory")
+        failed = self.path("unreadable-directory")
 
         def fail_walk(top: Path, onerror: object = None) -> list[object]:
-            self.assertEqual(self.path("plugins/shipwright"), Path(top))
+            self.assertEqual(self.path("."), Path(top))
             self.assertIsNotNone(onerror)
             error = PermissionError(13, "simulated enumeration failure", str(failed))
             onerror(error)  # type: ignore[operator]
@@ -1295,7 +1249,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             errors = validate_bundle(self.repo_root)
         self.assertTrue(
             any(
-                "cannot inspect directory plugins/shipwright/unreadable-directory"
+                "cannot inspect directory unreadable-directory"
                 in error
                 and "simulated enumeration failure" in error
                 for error in errors
@@ -1304,25 +1258,25 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
 
     def test_stale_scan_skips_only_nul_marked_binary_files(self) -> None:
-        binary = self.path("plugins/shipwright/image.bin")
+        binary = self.path("image.bin")
         legacy_skill = "-".join(("full", "dev")).encode()
         binary.write_bytes(b"\x00$" + legacy_skill)
         self.assertEqual([], validate_bundle(self.repo_root))
 
-    def test_stale_scan_ignores_historical_documents_outside_scope(self) -> None:
+    def test_stale_scan_covers_historical_documents_inside_repository_root(self) -> None:
         historical = self.path("docs/history.md")
         historical.parent.mkdir(parents=True)
         legacy_skill = "-".join(("full", "dev"))
         historical.write_text(
             "$" + legacy_skill + "\n" + legacy_skill + "-worker\n", encoding="utf-8"
         )
-        self.assertEqual([], validate_bundle(self.repo_root))
+        self.assert_error("docs/history.md")
 
     def test_accumulates_multiple_invariant_failures(self) -> None:
-        codex_manifest = self.path("plugins/shipwright/.codex-plugin/plugin.json")
+        codex_manifest = self.path(".codex-plugin/plugin.json")
         codex_manifest.unlink()
         self.replace(
-            "plugins/shipwright/skills/shipwright/references/claude-code.md",
+            "skills/shipwright/references/claude-code.md",
             "claude-opus-4-6",
             "claude-other",
         )
@@ -1331,10 +1285,8 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertTrue(any("Claude controller gate" in error for error in errors), errors)
 
     def test_field_and_version_diagnostics_include_their_source_paths(self) -> None:
-        codex_path = "plugins/shipwright/.codex-plugin/plugin.json"
-        claude_path = "plugins/shipwright/.claude-plugin/plugin.json"
-        codex_marketplace_path = ".agents/plugins/marketplace.json"
-        claude_marketplace_path = ".claude-plugin/marketplace.json"
+        codex_path = ".codex-plugin/plugin.json"
+        claude_path = ".claude-plugin/plugin.json"
 
         codex = self.read_json(codex_path)
         codex["repository"] = "wrong"
@@ -1342,23 +1294,10 @@ class ShipwrightValidatorTests(unittest.TestCase):
         claude = self.read_json(claude_path)
         claude["version"] = "1.0.0"
         self.write_json(claude_path, claude)
-        codex_catalog = self.read_json(codex_marketplace_path)
-        next(
-            item for item in codex_catalog["plugins"] if item["name"] == "shipwright"
-        )["category"] = "Wrong"
-        self.write_json(codex_marketplace_path, codex_catalog)
-        claude_catalog = self.read_json(claude_marketplace_path)
-        next(
-            item for item in claude_catalog["plugins"] if item["name"] == "shipwright"
-        )["source"] = "wrong"
-        self.write_json(claude_marketplace_path, claude_catalog)
-
         errors = validate_bundle(self.repo_root)
         for relative_path, field in (
             (codex_path, "repository"),
             (claude_path, "version"),
-            (codex_marketplace_path, "category"),
-            (claude_marketplace_path, "source"),
         ):
             self.assertTrue(
                 any(relative_path in error and field in error for error in errors), errors
@@ -1373,7 +1312,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.assertEqual("Shipwright validation passed.\n", stdout.getvalue())
 
     def test_main_failure_contract(self) -> None:
-        missing = "plugins/shipwright/.codex-plugin/plugin.json"
+        missing = ".codex-plugin/plugin.json"
         self.path(missing).unlink()
         stdout = StringIO()
         with mock.patch.object(validator, "_repository_root", return_value=self.repo_root):
