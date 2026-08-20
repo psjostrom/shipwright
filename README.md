@@ -362,20 +362,32 @@ floor passes.
 
 ### Claude Code
 
-Install this repository as a Claude Code plugin and invoke `/shipwright:shipwright`. The controller gate
-requires a resolved Opus `4.6+`; specialist routing defaults to Haiku for
-mechanical work, Sonnet for ordinary/integration work, and Opus for critical
-work. Claude child report text is persisted by the controller because its
-subagent tooling does not let children write report files.
+Install through the Shipwright entry in the Agent Plugins catalog:
+
+```sh
+claude plugin marketplace add psjostrom/agent-plugins
+claude plugin install shipwright@agent-plugins
+```
+
+Invoke `/shipwright:shipwright`. The controller gate requires a resolved Opus
+`4.6+`; specialist routing defaults to Haiku for mechanical work, Sonnet for
+ordinary/integration work, and Opus for critical work. Claude child report text
+is persisted by the controller because its subagent tooling does not let
+children write report files.
 
 ### Cursor
 
-Install this repository as a Cursor plugin and Superpowers `6.1.1+` separately.
-Invoke `/shipwright`. The controller gate requires a model resolved to Grok
-`4.5` or newer.
+The standalone Shipwright Cursor marketplace listing is pending review and is
+not yet available to install. Once accepted, install Superpowers `6.1.1+`
+separately and invoke `/shipwright`. The controller gate requires a model
+resolved to Grok `4.5` or newer.
 Cursor maps mechanical/ordinary work to Composer and integration/critical work
 to Grok, with the effort floors shown above. Do not describe GPT Luna/Terra/Sol
 as Cursor worker runtimes; they are not allowlisted here.
+
+### OpenCode
+
+OpenCode is unsupported.
 
 ## Source map
 
