@@ -70,8 +70,9 @@ platform reference, fresh verification, and applicable QA still apply.
 | Codex | `Use $shipwright:shipwright to build this feature end to end ...` |
 | Claude Code | `/shipwright:shipwright` |
 | Cursor | `/shipwright` |
+| Antigravity | `/shipwright` |
 
-- `shipwright` — Codex: `$shipwright:shipwright`; Claude Code: `/shipwright:shipwright`, or `/shipwright` in Cursor.
+- `shipwright` — Codex: `$shipwright:shipwright`; Claude Code: `/shipwright:shipwright`, or `/shipwright` in Cursor and Antigravity.
 
 Examples:
 
@@ -389,6 +390,24 @@ as Cursor worker runtimes; they are not allowlisted here.
 
 OpenCode is unsupported.
 
+### Antigravity
+
+Install directly from GitHub or local directory:
+
+```sh
+agy plugin install https://github.com/psjostrom/shipwright
+# Or from local clone:
+agy plugin install .
+```
+
+Invoke `/shipwright` (or launch with `agy --model flash --effort high`). Shipwright requires Gemini 3.7 Flash or newer as controller floor (recommending high effort) and dispatches worker/reviewer subagents via `invoke_subagent`.
+
+Validate plugin structure with:
+
+```sh
+agy plugin validate .
+```
+
 ## Source map
 
 - [`skills/shipwright/SKILL.md`](skills/shipwright/SKILL.md) — complete shared
@@ -399,6 +418,8 @@ OpenCode is unsupported.
   — Claude Code runtime floor, model evidence, routing, and fallback.
 - [`skills/shipwright/references/cursor.md`](skills/shipwright/references/cursor.md)
   — Cursor runtime floor, model evidence, routing, and fallback.
+- [`skills/shipwright/references/antigravity.md`](skills/shipwright/references/antigravity.md)
+  — Antigravity runtime reference and subagent dispatch routing.
 - [`scripts/validate_shipwright.py`](scripts/validate_shipwright.py) — bundle
   validator.
 
@@ -408,6 +429,7 @@ After changing Shipwright platform files, run:
 
 ```sh
 python3 scripts/validate_shipwright.py
+agy plugin validate .
 ```
 
 After changing validator logic, also run:
