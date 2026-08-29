@@ -400,7 +400,7 @@ agy plugin install https://github.com/psjostrom/shipwright
 agy plugin install .
 ```
 
-Invoke `/shipwright`. Shipwright requires Gemini 3.7 Flash High reasoning as controller floor and dispatches worker/reviewer subagents via `invoke_subagent`.
+Invoke `/shipwright` (or launch with `agy --model flash --effort high`). Shipwright requires Gemini 3.7 Flash or newer as controller floor (recommending high effort) and dispatches worker/reviewer subagents via `invoke_subagent`.
 
 Validate plugin structure with:
 

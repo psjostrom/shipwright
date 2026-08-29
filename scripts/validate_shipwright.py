@@ -1169,6 +1169,35 @@ def _validate_skill_and_contracts(
         CURSOR_REFERENCE,
         errors,
     )
+    _require_markers(
+        antigravity_text,
+        (
+            ("Gemini 3.7 Flash", "Antigravity controller gate minimum model version"),
+            (
+                "Require a resolved Gemini model at version `3.7`",
+                "Antigravity controller gate numeric floor",
+            ),
+            (
+                "Recommended controller effort is `high`",
+                "Antigravity recommended controller effort",
+            ),
+            (
+                "Recommended controller effort is not a precondition",
+                "Antigravity controller effort not a precondition",
+            ),
+            ("select **Gemini 3.7 Flash or newer**", "Antigravity controller gate guidance"),
+            (
+                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                "Antigravity controller effort never hard-stops",
+            ),
+            ("| Mechanical | `flash_lite` or `flash` |", "Antigravity worker routing mechanical"),
+            ("| Critical | `pro` |", "Antigravity worker routing critical"),
+            ("invoke_subagent", "Antigravity dispatch tool"),
+        ),
+        ANTIGRAVITY_REFERENCE,
+        errors,
+    )
+
 
 def _validate_openai_metadata(metadata_text: Optional[str], errors: list[str]) -> None:
     if metadata_text is None:
