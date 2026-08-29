@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Orchestrate approved development through bounded implementation, independent review, fresh verification, and applicable real-world QA. The controller owns decisions and evidence; children receive file-based, task-local context.
 
-Invoke as `$shipwright:shipwright` in Codex, `/shipwright:shipwright` in Claude Code, or `/shipwright` in Cursor.
+Invoke as `$shipwright:shipwright` in Codex, `/shipwright:shipwright` in Claude Code, or `/shipwright` in Cursor and Antigravity.
 
 ## 1. Select the platform and run preflight
 
@@ -17,6 +17,7 @@ Identify the active harness, then read exactly one complete reference:
 - Codex: [references/codex.md](references/codex.md)
 - Claude Code: [references/claude-code.md](references/claude-code.md)
 - Cursor: [references/cursor.md](references/cursor.md)
+- Antigravity: [references/antigravity.md](references/antigravity.md)
 
 Stop if the harness cannot be identified. Stop if the selected platform reference cannot be read. Apply its controller gate before writing specifications, plans, branches, ledgers, or implementation artifacts — including before any §3 reduction. An unreadable platform reference is a stop condition, not a downgrade or a reason to skip the gate. Configuration, aliases, task labels, filenames, and requested profiles are not current-turn evidence. Conflicting accepted evidence is unverified. After the user changes the model or supplies evidence, restart the complete preflight in the same task.
 

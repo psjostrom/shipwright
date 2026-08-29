@@ -77,6 +77,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             ".codex-plugin/plugin.json",
             ".claude-plugin/plugin.json",
             ".cursor-plugin/plugin.json",
+            "plugin.json",
         )
         for relative_path in paths:
             with self.subTest(path=relative_path):
@@ -92,6 +93,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "skills/shipwright/references/codex.md",
             "skills/shipwright/references/claude-code.md",
             "skills/shipwright/references/cursor.md",
+            "skills/shipwright/references/antigravity.md",
             "skills/shipwright/agents/openai.yaml",
         )
         for relative_path in paths:
@@ -115,6 +117,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             ".codex-plugin/plugin.json",
             ".claude-plugin/plugin.json",
             ".cursor-plugin/plugin.json",
+            "plugin.json",
         ):
             with self.subTest(path=relative_path):
                 manifest = self.read_json(relative_path)

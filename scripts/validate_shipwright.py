@@ -14,11 +14,13 @@ PLUGIN_ROOT = Path(".")
 CODEX_MANIFEST = PLUGIN_ROOT / ".codex-plugin/plugin.json"
 CLAUDE_MANIFEST = PLUGIN_ROOT / ".claude-plugin/plugin.json"
 CURSOR_MANIFEST = PLUGIN_ROOT / ".cursor-plugin/plugin.json"
+ANTIGRAVITY_MANIFEST = PLUGIN_ROOT / "plugin.json"
 SKILL = PLUGIN_ROOT / "skills/shipwright/SKILL.md"
 OPENAI_METADATA = PLUGIN_ROOT / "skills/shipwright/agents/openai.yaml"
 CODEX_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/codex.md"
 CLAUDE_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/claude-code.md"
 CURSOR_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/cursor.md"
+ANTIGRAVITY_REFERENCE = PLUGIN_ROOT / "skills/shipwright/references/antigravity.md"
 README = Path("README.md")
 
 DESCRIPTION = (
@@ -119,7 +121,7 @@ def _valid_codex_version(value: Any) -> bool:
 
 
 def _validate_manifests(
-    codex: Any, claude: Any, cursor: Any, errors: list[str]
+    codex: Any, claude: Any, cursor: Any, antigravity: Any, errors: list[str]
 ) -> None:
     if isinstance(codex, dict):
         _require_equal(codex, ("name",), "shipwright", "Codex manifest name", CODEX_MANIFEST, errors)
@@ -222,6 +224,14 @@ def _validate_manifests(
         _require_equal(cursor, ("skills",), "./skills/", "Cursor manifest skills path", CURSOR_MANIFEST, errors)
     elif cursor is not None:
         errors.append(f"{_display(CURSOR_MANIFEST)}: Cursor manifest root must be a JSON object")
+
+    if isinstance(antigravity, dict):
+        _require_equal(antigravity, ("name",), "shipwright", "Antigravity manifest name", ANTIGRAVITY_MANIFEST, errors)
+        _require_equal(antigravity, ("version",), "1.0.0", "Antigravity manifest version", ANTIGRAVITY_MANIFEST, errors)
+        _require_equal(antigravity, ("description",), DESCRIPTION, "Antigravity manifest description", ANTIGRAVITY_MANIFEST, errors)
+    elif antigravity is not None:
+        errors.append(f"{_display(ANTIGRAVITY_MANIFEST)}: Antigravity manifest root must be a JSON object")
+
 
 
 
@@ -522,6 +532,7 @@ def _validate_skill_and_contracts(
     codex_text: Optional[str],
     claude_text: Optional[str],
     cursor_text: Optional[str],
+    antigravity_text: Optional[str],
     errors: list[str],
 ) -> None:
     skill_root = repo_root
@@ -598,6 +609,10 @@ def _validate_skill_and_contracts(
             (
                 "[references/cursor.md](references/cursor.md)",
                 "reachable Cursor reference link",
+            ),
+            (
+                "[references/antigravity.md](references/antigravity.md)",
+                "reachable Antigravity reference link",
             ),
             (
                 "do not present Superpowers `writing-plans` execution options",
@@ -1280,21 +1295,26 @@ def validate_bundle(repo_root: Path) -> list[str]:
     codex_manifest = _load_json(repo_root, CODEX_MANIFEST, errors)
     claude_manifest = _load_json(repo_root, CLAUDE_MANIFEST, errors)
     cursor_manifest = _load_json(repo_root, CURSOR_MANIFEST, errors)
+    antigravity_manifest = _load_json(repo_root, ANTIGRAVITY_MANIFEST, errors)
 
     skill_text = _read_text(repo_root, SKILL, errors)
     openai_text = _read_text(repo_root, OPENAI_METADATA, errors)
     codex_text = _read_text(repo_root, CODEX_REFERENCE, errors)
     claude_text = _read_text(repo_root, CLAUDE_REFERENCE, errors)
     cursor_text = _read_text(repo_root, CURSOR_REFERENCE, errors)
+    antigravity_text = _read_text(repo_root, ANTIGRAVITY_REFERENCE, errors)
     readme_text = _read_text(repo_root, README, errors)
 
-    _validate_manifests(codex_manifest, claude_manifest, cursor_manifest, errors)
+    _validate_manifests(
+        codex_manifest, claude_manifest, cursor_manifest, antigravity_manifest, errors
+    )
     _validate_skill_and_contracts(
         repo_root,
         skill_text,
         codex_text,
         claude_text,
         cursor_text,
+        antigravity_text,
         errors,
     )
     _validate_openai_metadata(openai_text, errors)
