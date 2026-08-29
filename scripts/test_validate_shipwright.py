@@ -175,6 +175,23 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.write_json(cursor_path, cursor)
                 errors = self.assert_error(cursor_path)
                 self.assertTrue(any("version" in error for error in errors), errors)
+        cursor["version"] = "1.0.0"
+        self.write_json(cursor_path, cursor)
+
+        antigravity_path = "plugin.json"
+        antigravity = self.read_json(antigravity_path)
+        self.assertNotIn("version", antigravity)
+        self.assertEqual([], validate_bundle(self.repo_root))
+        for present in ("1.0.0", "1.0.1", "1.0.0-dev"):
+            with self.subTest(platform="antigravity", version=present):
+                antigravity["version"] = present
+                self.write_json(antigravity_path, antigravity)
+                errors = self.assert_error(antigravity_path)
+                self.assertTrue(
+                    any("must omit version" in error for error in errors), errors
+                )
+        antigravity.pop("version", None)
+        self.write_json(antigravity_path, antigravity)
 
     def test_reports_wrong_skill_frontmatter_name(self) -> None:
         self.replace(
