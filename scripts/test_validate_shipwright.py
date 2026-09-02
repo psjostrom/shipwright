@@ -219,6 +219,14 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assert_error("frontmatter")
         self.path(skill).write_text(original, encoding="utf-8")
 
+    def test_skill_frontmatter_requires_closing_delimiter(self) -> None:
+        skill = "skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        unterminated = original.replace("\n---\n\n# Shipwright", "\n\n# Shipwright", 1)
+        self.path(skill).write_text(unterminated, encoding="utf-8")
+        self.assert_error("unterminated YAML frontmatter")
+        self.path(skill).write_text(original, encoding="utf-8")
+
     def test_yaml_scalars_accept_inline_comments_trailing_space_and_boolean_case(self) -> None:
         skill = "skills/shipwright/SKILL.md"
         self.replace(skill, "name: shipwright", "name: shipwright   # canonical skill name")
