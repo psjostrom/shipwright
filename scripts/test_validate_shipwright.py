@@ -72,6 +72,40 @@ class ShipwrightValidatorTests(unittest.TestCase):
         path.write_text("{not-json\n", encoding="utf-8")
         self.assert_error("malformed JSON")
 
+    def test_reports_undecodable_json(self) -> None:
+        path = self.path(".codex-plugin/plugin.json")
+        path.write_bytes(b"\xff\xfe\xfd")
+        self.assert_error("malformed JSON")
+
+    def test_reports_unreadable_json(self) -> None:
+        path = self.path(".codex-plugin/plugin.json")
+        original_read_text = Path.read_text
+
+        def fail_read(p: Path, **kwargs: object) -> str:
+            if p == path:
+                raise OSError("simulated read failure")
+            return original_read_text(p, **kwargs)
+
+        with mock.patch.object(Path, "read_text", autospec=True, side_effect=fail_read):
+            self.assert_error("malformed JSON")
+
+    def test_reports_undecodable_text_file(self) -> None:
+        path = self.path("skills/shipwright/agents/openai.yaml")
+        path.write_bytes(b"\xff\xfe\xfd")
+        self.assert_error("cannot read skills/shipwright/agents/openai.yaml")
+
+    def test_reports_unreadable_text_file(self) -> None:
+        path = self.path("skills/shipwright/agents/openai.yaml")
+        original_read_text = Path.read_text
+
+        def fail_read(p: Path, **kwargs: object) -> str:
+            if p == path:
+                raise OSError("simulated read failure")
+            return original_read_text(p, **kwargs)
+
+        with mock.patch.object(Path, "read_text", autospec=True, side_effect=fail_read):
+            self.assert_error("cannot read skills/shipwright/agents/openai.yaml")
+
     def test_reports_every_missing_manifest(self) -> None:
         paths = (
             ".codex-plugin/plugin.json",
