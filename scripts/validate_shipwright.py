@@ -9,7 +9,6 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
-
 PLUGIN_ROOT = Path(".")
 CODEX_MANIFEST = PLUGIN_ROOT / ".codex-plugin/plugin.json"
 CLAUDE_MANIFEST = PLUGIN_ROOT / ".claude-plugin/plugin.json"
@@ -52,6 +51,7 @@ CODEX_INSTALL_ROUTE = (
     "codex plugin add shipwright@agent-plugins"
 )
 
+
 def _has_cursor_invocation(text: str) -> bool:
     """True when text contains bare /shipwright, not only /shipwright:shipwright."""
 
@@ -74,7 +74,9 @@ def _load_json(repo_root: Path, relative_path: Path, errors: list[str]) -> Any:
         return None
 
 
-def _read_text(repo_root: Path, relative_path: Path, errors: list[str]) -> Optional[str]:
+def _read_text(
+    repo_root: Path, relative_path: Path, errors: list[str]
+) -> Optional[str]:
     path = repo_root / relative_path
     if not path.is_file():
         errors.append(f"missing required file: {_display(relative_path)}")
@@ -124,14 +126,35 @@ def _validate_manifests(
     codex: Any, claude: Any, cursor: Any, antigravity: Any, errors: list[str]
 ) -> None:
     if isinstance(codex, dict):
-        _require_equal(codex, ("name",), "shipwright", "Codex manifest name", CODEX_MANIFEST, errors)
+        _require_equal(
+            codex,
+            ("name",),
+            "shipwright",
+            "Codex manifest name",
+            CODEX_MANIFEST,
+            errors,
+        )
         if not _valid_codex_version(codex.get("version")):
             errors.append(
                 f"{_display(CODEX_MANIFEST)}: Codex manifest version must be '1.0.0' "
                 "or '1.0.0+codex.<cachebuster>'"
             )
-        _require_equal(codex, ("description",), DESCRIPTION, "Codex manifest description", CODEX_MANIFEST, errors)
-        _require_equal(codex, ("author", "name"), "psjostrom", "Codex manifest author.name", CODEX_MANIFEST, errors)
+        _require_equal(
+            codex,
+            ("description",),
+            DESCRIPTION,
+            "Codex manifest description",
+            CODEX_MANIFEST,
+            errors,
+        )
+        _require_equal(
+            codex,
+            ("author", "name"),
+            "psjostrom",
+            "Codex manifest author.name",
+            CODEX_MANIFEST,
+            errors,
+        )
         _require_equal(
             codex,
             ("author", "url"),
@@ -148,8 +171,22 @@ def _validate_manifests(
             CODEX_MANIFEST,
             errors,
         )
-        _require_equal(codex, ("keywords",), KEYWORDS, "Codex manifest keywords", CODEX_MANIFEST, errors)
-        _require_equal(codex, ("skills",), "./skills/", "Codex manifest skills path", CODEX_MANIFEST, errors)
+        _require_equal(
+            codex,
+            ("keywords",),
+            KEYWORDS,
+            "Codex manifest keywords",
+            CODEX_MANIFEST,
+            errors,
+        )
+        _require_equal(
+            codex,
+            ("skills",),
+            "./skills/",
+            "Codex manifest skills path",
+            CODEX_MANIFEST,
+            errors,
+        )
 
         interface_expectations = {
             "displayName": "Shipwright",
@@ -174,10 +211,19 @@ def _validate_manifests(
                 errors,
             )
     elif codex is not None:
-        errors.append(f"{_display(CODEX_MANIFEST)}: Codex manifest root must be a JSON object")
+        errors.append(
+            f"{_display(CODEX_MANIFEST)}: Codex manifest root must be a JSON object"
+        )
 
     if isinstance(claude, dict):
-        _require_equal(claude, ("name",), "shipwright", "Claude manifest name", CLAUDE_MANIFEST, errors)
+        _require_equal(
+            claude,
+            ("name",),
+            "shipwright",
+            "Claude manifest name",
+            CLAUDE_MANIFEST,
+            errors,
+        )
         # Claude omits version so updates track git commit SHA. Cursor/Codex keep
         # an explicit pin; that asymmetry is intentional — do not restore Claude
         # version for cross-platform symmetry.
@@ -186,24 +232,73 @@ def _validate_manifests(
                 f"{_display(CLAUDE_MANIFEST)}: Claude manifest must omit version "
                 f"(SHA-tracked delivery); found {claude.get('version')!r}"
             )
-        _require_equal(claude, ("description",), DESCRIPTION, "Claude manifest description", CLAUDE_MANIFEST, errors)
-        _require_equal(claude, ("author", "name"), "psjostrom", "Claude manifest author.name", CLAUDE_MANIFEST, errors)
-        _require_equal(claude, ("keywords",), KEYWORDS, "Claude manifest keywords", CLAUDE_MANIFEST, errors)
+        _require_equal(
+            claude,
+            ("description",),
+            DESCRIPTION,
+            "Claude manifest description",
+            CLAUDE_MANIFEST,
+            errors,
+        )
+        _require_equal(
+            claude,
+            ("author", "name"),
+            "psjostrom",
+            "Claude manifest author.name",
+            CLAUDE_MANIFEST,
+            errors,
+        )
+        _require_equal(
+            claude,
+            ("keywords",),
+            KEYWORDS,
+            "Claude manifest keywords",
+            CLAUDE_MANIFEST,
+            errors,
+        )
     elif claude is not None:
-        errors.append(f"{_display(CLAUDE_MANIFEST)}: Claude manifest root must be a JSON object")
+        errors.append(
+            f"{_display(CLAUDE_MANIFEST)}: Claude manifest root must be a JSON object"
+        )
 
     if isinstance(cursor, dict):
-        _require_equal(cursor, ("name",), "shipwright", "Cursor manifest name", CURSOR_MANIFEST, errors)
+        _require_equal(
+            cursor,
+            ("name",),
+            "shipwright",
+            "Cursor manifest name",
+            CURSOR_MANIFEST,
+            errors,
+        )
         if cursor.get("version") != "1.0.0":
             errors.append(
                 f"{_display(CURSOR_MANIFEST)}: Cursor manifest version must be exactly '1.0.0'; "
                 f"found {cursor.get('version')!r}"
             )
         _require_equal(
-            cursor, ("displayName",), "Shipwright", "Cursor manifest displayName", CURSOR_MANIFEST, errors
+            cursor,
+            ("displayName",),
+            "Shipwright",
+            "Cursor manifest displayName",
+            CURSOR_MANIFEST,
+            errors,
         )
-        _require_equal(cursor, ("description",), DESCRIPTION, "Cursor manifest description", CURSOR_MANIFEST, errors)
-        _require_equal(cursor, ("author", "name"), "psjostrom", "Cursor manifest author.name", CURSOR_MANIFEST, errors)
+        _require_equal(
+            cursor,
+            ("description",),
+            DESCRIPTION,
+            "Cursor manifest description",
+            CURSOR_MANIFEST,
+            errors,
+        )
+        _require_equal(
+            cursor,
+            ("author", "name"),
+            "psjostrom",
+            "Cursor manifest author.name",
+            CURSOR_MANIFEST,
+            errors,
+        )
         _require_equal(
             cursor,
             ("author", "url"),
@@ -220,23 +315,53 @@ def _validate_manifests(
             CURSOR_MANIFEST,
             errors,
         )
-        _require_equal(cursor, ("keywords",), KEYWORDS, "Cursor manifest keywords", CURSOR_MANIFEST, errors)
-        _require_equal(cursor, ("skills",), "./skills/", "Cursor manifest skills path", CURSOR_MANIFEST, errors)
+        _require_equal(
+            cursor,
+            ("keywords",),
+            KEYWORDS,
+            "Cursor manifest keywords",
+            CURSOR_MANIFEST,
+            errors,
+        )
+        _require_equal(
+            cursor,
+            ("skills",),
+            "./skills/",
+            "Cursor manifest skills path",
+            CURSOR_MANIFEST,
+            errors,
+        )
     elif cursor is not None:
-        errors.append(f"{_display(CURSOR_MANIFEST)}: Cursor manifest root must be a JSON object")
+        errors.append(
+            f"{_display(CURSOR_MANIFEST)}: Cursor manifest root must be a JSON object"
+        )
 
     if isinstance(antigravity, dict):
-        _require_equal(antigravity, ("name",), "shipwright", "Antigravity manifest name", ANTIGRAVITY_MANIFEST, errors)
+        _require_equal(
+            antigravity,
+            ("name",),
+            "shipwright",
+            "Antigravity manifest name",
+            ANTIGRAVITY_MANIFEST,
+            errors,
+        )
         if "version" in antigravity:
             errors.append(
                 f"{_display(ANTIGRAVITY_MANIFEST)}: Antigravity manifest must omit version "
                 f"(SHA-tracked delivery); found {antigravity.get('version')!r}"
             )
-        _require_equal(antigravity, ("description",), DESCRIPTION, "Antigravity manifest description", ANTIGRAVITY_MANIFEST, errors)
+        _require_equal(
+            antigravity,
+            ("description",),
+            DESCRIPTION,
+            "Antigravity manifest description",
+            ANTIGRAVITY_MANIFEST,
+            errors,
+        )
     elif antigravity is not None:
-        errors.append(f"{_display(ANTIGRAVITY_MANIFEST)}: Antigravity manifest root must be a JSON object")
-
-
+        errors.append(
+            f"{_display(ANTIGRAVITY_MANIFEST)}: Antigravity manifest root must be a JSON object"
+        )
 
 
 def _parse_yaml_scalar(
@@ -281,7 +406,9 @@ def _parse_yaml_scalar(
             return None
         return "".join(decoded)
     if raw_value.endswith(("'", '"')):
-        errors.append(f"{_display(relative_path)}:{line_number}: malformed quoted scalar")
+        errors.append(
+            f"{_display(relative_path)}:{line_number}: malformed quoted scalar"
+        )
         return None
     if raw_value.lower() == "true":
         return True
@@ -302,7 +429,11 @@ def _strip_yaml_inline_comment(raw_value: str) -> str:
             index += 2
             continue
         if in_quote and character == quote:
-            if quote == "'" and index + 1 < len(raw_value) and raw_value[index + 1] == "'":
+            if (
+                quote == "'"
+                and index + 1 < len(raw_value)
+                and raw_value[index + 1] == "'"
+            ):
                 index += 2
                 continue
             in_quote = False
@@ -337,7 +468,9 @@ def _parse_constrained_yaml(
                 f"{_display(relative_path)}:{line_number}: YAML indentation must use two-space levels"
             )
             continue
-        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):(?:[ ]*(.*))?", line[indentation:])
+        match = re.fullmatch(
+            r"([A-Za-z_][A-Za-z0-9_-]*):(?:[ ]*(.*))?", line[indentation:]
+        )
         if match is None:
             errors.append(
                 f"{_display(relative_path)}:{line_number}: unsupported YAML mapping line: {line!r}"
@@ -370,7 +503,9 @@ def _parse_constrained_yaml(
 
             raw_value = _strip_yaml_inline_comment(raw_value).rstrip()
             if raw_value:
-                value = _parse_yaml_scalar(raw_value, relative_path, line_number, errors)
+                value = _parse_yaml_scalar(
+                    raw_value, relative_path, line_number, errors
+                )
                 if index < len(entries) and entries[index][1] > indentation:
                     nested_line = entries[index][0]
                     errors.append(
@@ -530,19 +665,16 @@ def _active_markdown(markdown: str) -> str:
     return "\n".join(active_lines)
 
 
-def _validate_skill_and_contracts(
+def _validate_skill_text(
     repo_root: Path,
     skill_text: Optional[str],
-    codex_text: Optional[str],
-    claude_text: Optional[str],
-    cursor_text: Optional[str],
-    antigravity_text: Optional[str],
     errors: list[str],
 ) -> None:
     skill_root = repo_root
     if skill_root.is_dir():
         skill_files = sorted(
-            path.relative_to(repo_root).as_posix() for path in skill_root.rglob("SKILL.md")
+            path.relative_to(repo_root).as_posix()
+            for path in skill_root.rglob("SKILL.md")
         )
         expected = [_display(SKILL)]
         if skill_files != expected:
@@ -605,7 +737,10 @@ def _validate_skill_and_contracts(
         (
             (CODEX_INVOCATION, "Codex invocation"),
             (CLAUDE_INVOCATION, "Claude invocation"),
-            ("[references/codex.md](references/codex.md)", "reachable Codex reference link"),
+            (
+                "[references/codex.md](references/codex.md)",
+                "reachable Codex reference link",
+            ),
             (
                 "[references/claude-code.md](references/claude-code.md)",
                 "reachable Claude reference link",
@@ -961,6 +1096,11 @@ def _validate_skill_and_contracts(
                     f"for {outcome!r}"
                 )
 
+
+def _validate_codex_text(
+    codex_text: Optional[str],
+    errors: list[str],
+) -> None:
     _require_markers(
         codex_text,
         (
@@ -1015,6 +1155,27 @@ def _validate_skill_and_contracts(
         CODEX_REFERENCE,
         errors,
     )
+    _forbid_markers(
+        codex_text,
+        (
+            (
+                "Accept only exact",
+                "Codex exact-version acceptance pin",
+            ),
+            (
+                "until this reference explicitly allowlists",
+                "Codex future-model allowlist brittleness",
+            ),
+        ),
+        CODEX_REFERENCE,
+        errors,
+    )
+
+
+def _validate_claude_text(
+    claude_text: Optional[str],
+    errors: list[str],
+) -> None:
     _require_markers(
         claude_text,
         (
@@ -1108,21 +1269,12 @@ def _validate_skill_and_contracts(
         CLAUDE_REFERENCE,
         errors,
     )
-    _forbid_markers(
-        codex_text,
-        (
-            (
-                "Accept only exact",
-                "Codex exact-version acceptance pin",
-            ),
-            (
-                "until this reference explicitly allowlists",
-                "Codex future-model allowlist brittleness",
-            ),
-        ),
-        CODEX_REFERENCE,
-        errors,
-    )
+
+
+def _validate_cursor_text(
+    cursor_text: Optional[str],
+    errors: list[str],
+) -> None:
     _forbid_markers(
         cursor_text,
         (
@@ -1169,6 +1321,12 @@ def _validate_skill_and_contracts(
         CURSOR_REFERENCE,
         errors,
     )
+
+
+def _validate_antigravity_text(
+    antigravity_text: Optional[str],
+    errors: list[str],
+) -> None:
     _require_markers(
         antigravity_text,
         (
@@ -1185,18 +1343,40 @@ def _validate_skill_and_contracts(
                 "Recommended controller effort is not a precondition",
                 "Antigravity controller effort not a precondition",
             ),
-            ("select **Gemini 3.7 Flash or newer**", "Antigravity controller gate guidance"),
+            (
+                "select **Gemini 3.7 Flash or newer**",
+                "Antigravity controller gate guidance",
+            ),
             (
                 "Never stop solely because controller effort is missing, weak, or unverifiable",
                 "Antigravity controller effort never hard-stops",
             ),
-            ("| Mechanical | `flash_lite` or `flash` |", "Antigravity worker routing mechanical"),
+            (
+                "| Mechanical | `flash_lite` or `flash` |",
+                "Antigravity worker routing mechanical",
+            ),
             ("| Critical | `pro` |", "Antigravity worker routing critical"),
             ("invoke_subagent", "Antigravity dispatch tool"),
         ),
         ANTIGRAVITY_REFERENCE,
         errors,
     )
+
+
+def _validate_skill_and_contracts(
+    repo_root: Path,
+    skill_text: Optional[str],
+    codex_text: Optional[str],
+    claude_text: Optional[str],
+    cursor_text: Optional[str],
+    antigravity_text: Optional[str],
+    errors: list[str],
+) -> None:
+    _validate_skill_text(repo_root, skill_text, errors)
+    _validate_codex_text(codex_text, errors)
+    _validate_claude_text(claude_text, errors)
+    _validate_cursor_text(cursor_text, errors)
+    _validate_antigravity_text(antigravity_text, errors)
 
 
 def _validate_openai_metadata(metadata_text: Optional[str], errors: list[str]) -> None:
@@ -1241,15 +1421,23 @@ def _validate_readme(readme_text: Optional[str], errors: list[str]) -> list[str]
         errors.append(
             f"{_display(README)}: Codex install route must use the agent-plugins catalog"
         )
-    bullets = [line for line in readme_text.splitlines() if line.startswith("- `shipwright`")]
+    bullets = [
+        line for line in readme_text.splitlines() if line.startswith("- `shipwright`")
+    ]
     if len(bullets) != 1:
-        errors.append(f"{_display(README)}: must contain exactly one Shipwright plugin bullet")
+        errors.append(
+            f"{_display(README)}: must contain exactly one Shipwright plugin bullet"
+        )
     else:
         bullet = bullets[0]
         if CODEX_INVOCATION not in bullet:
-            errors.append(f"{_display(README)}: Shipwright bullet must document Codex invocation")
+            errors.append(
+                f"{_display(README)}: Shipwright bullet must document Codex invocation"
+            )
         if CLAUDE_INVOCATION not in bullet:
-            errors.append(f"{_display(README)}: Shipwright bullet must document Claude invocation")
+            errors.append(
+                f"{_display(README)}: Shipwright bullet must document Claude invocation"
+            )
         if not _has_cursor_invocation(bullet) or CURSOR_INVOCATION_DOC not in bullet:
             errors.append(
                 f"{_display(README)}: Shipwright bullet must document Cursor invocation "
@@ -1268,6 +1456,7 @@ def _validate_stale_names(
 ) -> None:
     plugin_root = repo_root
     if plugin_root.is_dir():
+
         def report_walk_error(exc: OSError) -> None:
             failed_path = Path(exc.filename) if exc.filename else plugin_root
             try:
