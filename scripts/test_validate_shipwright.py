@@ -13,13 +13,11 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import validate_shipwright as validator  # noqa: E402
-
 
 validate_bundle = validator.validate_bundle
 
@@ -106,9 +104,13 @@ class ShipwrightValidatorTests(unittest.TestCase):
 
     def test_requires_disable_model_invocation_frontmatter(self) -> None:
         skill = "skills/shipwright/SKILL.md"
-        self.replace(skill, "disable-model-invocation: true", "disable-model-invocation: false")
+        self.replace(
+            skill, "disable-model-invocation: true", "disable-model-invocation: false"
+        )
         self.assert_error("disable-model-invocation")
-        self.replace(skill, "disable-model-invocation: false", "disable-model-invocation: true")
+        self.replace(
+            skill, "disable-model-invocation: false", "disable-model-invocation: true"
+        )
         self.replace(skill, "disable-model-invocation: true\n", "")
         self.assert_error("frontmatter keys")
 
@@ -211,7 +213,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
         original = self.path(skill).read_text(encoding="utf-8")
         mutations = {
             "opening": "  " + original,
-            "closing": original.replace("\n---\n\n# Shipwright", "\n  ---\n\n# Shipwright", 1),
+            "closing": original.replace(
+                "\n---\n\n# Shipwright", "\n  ---\n\n# Shipwright", 1
+            ),
         }
         for label, content in mutations.items():
             with self.subTest(delimiter=label):
@@ -219,9 +223,13 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assert_error("frontmatter")
         self.path(skill).write_text(original, encoding="utf-8")
 
-    def test_yaml_scalars_accept_inline_comments_trailing_space_and_boolean_case(self) -> None:
+    def test_yaml_scalars_accept_inline_comments_trailing_space_and_boolean_case(
+        self,
+    ) -> None:
         skill = "skills/shipwright/SKILL.md"
-        self.replace(skill, "name: shipwright", "name: shipwright   # canonical skill name")
+        self.replace(
+            skill, "name: shipwright", "name: shipwright   # canonical skill name"
+        )
         self.replace(
             skill,
             f"description: {validator.SKILL_DESCRIPTION}",
@@ -254,7 +262,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
         }
         for raw_value, expected in cases.items():
             with self.subTest(raw_value=raw_value):
-                self.assertEqual(expected, validator._strip_yaml_inline_comment(raw_value))
+                self.assertEqual(
+                    expected, validator._strip_yaml_inline_comment(raw_value)
+                )
 
         for raw_value, expected in (
             ("true", True),
@@ -281,7 +291,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 errors,
             )
         )
-        self.assertTrue(any("malformed single-quoted scalar" in error for error in errors))
+        self.assertTrue(
+            any("malformed single-quoted scalar" in error for error in errors)
+        )
 
     def test_skill_frontmatter_parser_accepts_commented_mapping_keys(self) -> None:
         errors: list[str] = []
@@ -298,12 +310,16 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.replace(metadata, "policy:\n", "policy: # invocation policy\n")
         self.assertEqual([], validate_bundle(self.repo_root))
 
-    def test_skill_frontmatter_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
+    def test_skill_frontmatter_rejects_inactive_malformed_nested_and_duplicate_fields(
+        self,
+    ) -> None:
         skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         mutations = {
             "commented": original.replace("name: shipwright", "# name: shipwright", 1),
-            "malformed quote": original.replace("name: shipwright", 'name: "shipwright', 1),
+            "malformed quote": original.replace(
+                "name: shipwright", 'name: "shipwright', 1
+            ),
             "wrong nesting": original.replace(
                 "name: shipwright", "metadata:\n  name: shipwright", 1
             ),
@@ -353,7 +369,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
     def test_openai_metadata_accepts_supported_unquoted_scalars(self) -> None:
         metadata = "skills/shipwright/agents/openai.yaml"
         content = self.path(metadata).read_text(encoding="utf-8")
-        content = content.replace('display_name: "Shipwright"', "display_name: Shipwright")
+        content = content.replace(
+            'display_name: "Shipwright"', "display_name: Shipwright"
+        )
         content = content.replace(
             'short_description: "Strict end-to-end development workflow"',
             "short_description: Strict end-to-end development workflow",
@@ -365,7 +383,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.path(metadata).write_text(content, encoding="utf-8")
         self.assertEqual([], validate_bundle(self.repo_root))
 
-    def test_openai_metadata_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
+    def test_openai_metadata_rejects_inactive_malformed_nested_and_duplicate_fields(
+        self,
+    ) -> None:
         metadata = "skills/shipwright/agents/openai.yaml"
         original = self.path(metadata).read_text(encoding="utf-8")
         mutations = {
@@ -474,9 +494,15 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "Grok-other",
         )
         errors = validate_bundle(self.repo_root)
-        self.assertTrue(any("Codex controller gate" in error for error in errors), errors)
-        self.assertTrue(any("Claude controller gate" in error for error in errors), errors)
-        self.assertTrue(any("Cursor controller gate" in error for error in errors), errors)
+        self.assertTrue(
+            any("Codex controller gate" in error for error in errors), errors
+        )
+        self.assertTrue(
+            any("Claude controller gate" in error for error in errors), errors
+        )
+        self.assertTrue(
+            any("Cursor controller gate" in error for error in errors), errors
+        )
 
     def test_reports_codex_worker_route_regressions(self) -> None:
         reference = "skills/shipwright/references/codex.md"
@@ -484,7 +510,10 @@ class ShipwrightValidatorTests(unittest.TestCase):
         mutations = (
             ("| Mechanical | Luna 5.6+ / Max |", "| Mechanical | Luna 5.6+ / Medium |"),
             ("| Ordinary | Luna 5.6+ / Max |", "| Ordinary | Terra 5.6+ / Medium |"),
-            ("| Integration | Luna 5.6+ / Max |", "| Integration | Terra 5.6+ / High |"),
+            (
+                "| Integration | Luna 5.6+ / Max |",
+                "| Integration | Terra 5.6+ / High |",
+            ),
             ("| Critical | Sol 5.6+ / High |", "| Critical | Luna 5.6+ / Max |"),
         )
         for expected, replacement in mutations:
@@ -702,111 +731,185 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 )
         self.path(skill).write_text(original, encoding="utf-8")
 
-    def test_reports_missing_field_report_contract_markers(self) -> None:
-        skill = "skills/shipwright/SKILL.md"
-        original = self.path(skill).read_text(encoding="utf-8")
-        cases = (
-            (
-                "compare filtered path *sets*",
-                "compare filtered path counts",
-                "§1 discovery uses path sets not counts",
-            ),
-            (
-                "Redirect to a file and read `$?`",
-                "Read exit status from the harness completion code",
-                "§11 file-backed tool exit status",
-            ),
-            (
-                "Read exit status from a value written to a file",
-                "Read exit status from the compound command",
-                "§8 reading evidence file-backed exit status",
-            ),
-            (
-                "Take the child thread/run ID from the harness spawn result",
-                "Require the child to self-report its thread/run ID",
-                "§7 child run ID from harness spawn",
-            ),
-            (
-                "**Reading evidence.**",
-                "**Evidence notes.**",
-                "§8 reading evidence section",
-            ),
-            (
-                "identical before/after screens are the required artifact",
-                "screenshots are optional when the UI is unchanged",
-                "§12 before/after screens required artifact",
-            ),
-            (
-                "absolute QA evidence directory path",
-                "relative QA evidence directory path",
-                "§12 absolute QA evidence path in completion report",
-            ),
-            (
-                "quantitative diff/observation numbers",
-                "qualitative screenshot impressions",
-                "§12 quantitative diff or observation numbers",
-            ),
-            (
-                "manifests and lockfiles byte-identical",
-                "manifests and lockfiles approximately unchanged",
-                "§14 byte-identical restoration proof",
-            ),
-            (
-                "record both the action and the proof in the ledger",
-                "record the action without the proof in the ledger",
-                "§14 restoration proof recorded in ledger",
-            ),
-            (
-                "If that proof fails, stop and surface the drift",
-                "If that proof fails, continue anyway",
-                "§14 restoration drift handling",
-            ),
-            (
-                "you cannot upload the images yourself",
-                "you cannot upload the images yourself; prefer embedding private-repo-scoped image URLs when obtainable without new credentials or policy breach",
-                "§12 soft PR-upload hedge",
-            ),
-            (
-                "Any literal expected value must either be measured",
-                "Literal expected values may be inferred from nearby mocks",
-                "§4 literal expected values must be measured",
-            ),
-            (
-                "work on a branch in the main checkout instead",
-                "always create a fresh worktree even when generated files are missing",
-                "§1 worktree exception for generated gitignored files",
-            ),
-            (
-                "When §1's generated-gitignored-file exception applies, skip the fresh worktree",
-                "Always create a fresh worktree after plan approval",
-                "§4 worktree handoff honors §1 generated-file exception",
-            ),
-            (
-                "Resolve it before dispatch, not at commit time",
-                "Discover commit-gate collisions at commit time",
-                "§1 commit-gate preflight against task files",
-            ),
-            (
-                "record it as impossible, state why in one line",
-                "treat impossible observations as unverified with no substitute",
-                "§13 structurally impossible named observations",
-            ),
-            (
-                "This does not upgrade the outcome: it remains non-passing",
-                "This upgrades the outcome to verified when substitutes are strong",
-                "§13 impossible observation stays non-passing",
-            ),
+    def test_reports_missing_field_report_contract_marker_1_discovery_uses_path_sets_not_counts(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "compare filtered path *sets*",
+            "compare filtered path counts",
         )
-        for old, new, fragment in cases:
-            with self.subTest(fragment=fragment):
-                self.path(skill).write_text(original, encoding="utf-8")
-                self.replace(skill, old, new)
-                errors = validate_bundle(self.repo_root)
-                self.assertTrue(
-                    any(fragment in error for error in errors),
-                    errors,
-                )
-        self.path(skill).write_text(original, encoding="utf-8")
+        self.assert_error("§1 discovery uses path sets not counts")
+
+    def test_reports_missing_field_report_contract_marker_11_file_backed_tool_exit_status(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "Redirect to a file and read `$?`",
+            "Read exit status from the harness completion code",
+        )
+        self.assert_error("§11 file-backed tool exit status")
+
+    def test_reports_missing_field_report_contract_marker_8_reading_evidence_file_backed_exit_status(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "Read exit status from a value written to a file",
+            "Read exit status from the compound command",
+        )
+        self.assert_error("§8 reading evidence file-backed exit status")
+
+    def test_reports_missing_field_report_contract_marker_7_child_run_id_from_harness_spawn(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "Take the child thread/run ID from the harness spawn result",
+            "Require the child to self-report its thread/run ID",
+        )
+        self.assert_error("§7 child run ID from harness spawn")
+
+    def test_reports_missing_field_report_contract_marker_8_reading_evidence_section(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "**Reading evidence.**",
+            "**Evidence notes.**",
+        )
+        self.assert_error("§8 reading evidence section")
+
+    def test_reports_missing_field_report_contract_marker_12_before_after_screens_required_artifact(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "identical before/after screens are the required artifact",
+            "screenshots are optional when the UI is unchanged",
+        )
+        self.assert_error("§12 before/after screens required artifact")
+
+    def test_reports_missing_field_report_contract_marker_12_absolute_qa_evidence_path_in_completion_report(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "absolute QA evidence directory path",
+            "relative QA evidence directory path",
+        )
+        self.assert_error("§12 absolute QA evidence path in completion report")
+
+    def test_reports_missing_field_report_contract_marker_12_quantitative_diff_or_observation_numbers(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "quantitative diff/observation numbers",
+            "qualitative screenshot impressions",
+        )
+        self.assert_error("§12 quantitative diff or observation numbers")
+
+    def test_reports_missing_field_report_contract_marker_14_byte_identical_restoration_proof(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "manifests and lockfiles byte-identical",
+            "manifests and lockfiles approximately unchanged",
+        )
+        self.assert_error("§14 byte-identical restoration proof")
+
+    def test_reports_missing_field_report_contract_marker_14_restoration_proof_recorded_in_ledger(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "record both the action and the proof in the ledger",
+            "record the action without the proof in the ledger",
+        )
+        self.assert_error("§14 restoration proof recorded in ledger")
+
+    def test_reports_missing_field_report_contract_marker_14_restoration_drift_handling(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "If that proof fails, stop and surface the drift",
+            "If that proof fails, continue anyway",
+        )
+        self.assert_error("§14 restoration drift handling")
+
+    def test_reports_missing_field_report_contract_marker_12_soft_pr_upload_hedge(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "you cannot upload the images yourself",
+            "you cannot upload the images yourself; prefer embedding private-repo-scoped image URLs when obtainable without new credentials or policy breach",
+        )
+        self.assert_error("§12 soft PR-upload hedge")
+
+    def test_reports_missing_field_report_contract_marker_4_literal_expected_values_must_be_measured(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "Any literal expected value must either be measured",
+            "Literal expected values may be inferred from nearby mocks",
+        )
+        self.assert_error("§4 literal expected values must be measured")
+
+    def test_reports_missing_field_report_contract_marker_1_worktree_exception_for_generated_gitignored_files(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "work on a branch in the main checkout instead",
+            "always create a fresh worktree even when generated files are missing",
+        )
+        self.assert_error("§1 worktree exception for generated gitignored files")
+
+    def test_reports_missing_field_report_contract_marker_4_worktree_handoff_honors_1_generated_file_exception(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "When §1's generated-gitignored-file exception applies, skip the fresh worktree",
+            "Always create a fresh worktree after plan approval",
+        )
+        self.assert_error("§4 worktree handoff honors §1 generated-file exception")
+
+    def test_reports_missing_field_report_contract_marker_1_commit_gate_preflight_against_task_files(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "Resolve it before dispatch, not at commit time",
+            "Discover commit-gate collisions at commit time",
+        )
+        self.assert_error("§1 commit-gate preflight against task files")
+
+    def test_reports_missing_field_report_contract_marker_13_structurally_impossible_named_observations(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "record it as impossible, state why in one line",
+            "treat impossible observations as unverified with no substitute",
+        )
+        self.assert_error("§13 structurally impossible named observations")
+
+    def test_reports_missing_field_report_contract_marker_13_impossible_observation_stays_non_passing(
+        self,
+    ) -> None:
+        self.replace(
+            "skills/shipwright/SKILL.md",
+            "This does not upgrade the outcome: it remains non-passing",
+            "This upgrades the outcome to verified when substitutes are strong",
+        )
+        self.assert_error("§13 impossible observation stays non-passing")
 
     def test_rejects_weakened_verified_definition_contract(self) -> None:
         skill = "skills/shipwright/SKILL.md"
@@ -828,7 +931,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "a brief QA summary",
             1,
         )
-        text = text.replace("absolute QA evidence directory path", "QA evidence directory path")
+        text = text.replace(
+            "absolute QA evidence directory path", "QA evidence directory path"
+        )
         text = text.replace(
             "quantitative diff/observation numbers", "observation notes"
         )
@@ -1081,7 +1186,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
                     self.assert_error("QA outcome definition")
         self.path(skill).write_text(original, encoding="utf-8")
 
-    def test_fenced_literal_html_comment_does_not_hide_active_qa_definitions(self) -> None:
+    def test_fenced_literal_html_comment_does_not_hide_active_qa_definitions(
+        self,
+    ) -> None:
         skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
         marker = "## 13. Record QA outcomes\n"
@@ -1097,24 +1204,28 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assertEqual([], validate_bundle(self.repo_root))
         self.path(skill).write_text(original, encoding="utf-8")
 
-    def test_inline_code_literal_html_comment_does_not_hide_active_qa_definitions(self) -> None:
+    def test_inline_code_literal_html_comment_does_not_hide_active_qa_definitions(
+        self,
+    ) -> None:
         skill = "skills/shipwright/SKILL.md"
         marker = "## 13. Record QA outcomes\n"
         self.replace(skill, marker, "`<!-- literal code text`\n\n" + marker)
         self.assertEqual([], validate_bundle(self.repo_root))
 
-    def test_invalid_backtick_info_string_does_not_hide_active_qa_definitions(self) -> None:
+    def test_invalid_backtick_info_string_does_not_hide_active_qa_definitions(
+        self,
+    ) -> None:
         skill = "skills/shipwright/SKILL.md"
         marker = "## 13. Record QA outcomes\n"
         self.replace(skill, marker, "```text`invalid\n\n" + marker)
         self.assertEqual([], validate_bundle(self.repo_root))
 
-    def test_qa_outcome_fences_preserve_marker_length_and_indentation_rules(self) -> None:
+    def test_qa_outcome_fences_preserve_marker_length_and_indentation_rules(
+        self,
+    ) -> None:
         skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
-        definition = (
-            "- `verified`: every mandatory observation and artifact exists and the flow passed; for visual surfaces this includes the published session evidence (absolute QA path plus diff/observation numbers in the completion report).\n"
-        )
+        definition = "- `verified`: every mandatory observation and artifact exists and the flow passed; for visual surfaces this includes the published session evidence (absolute QA path plus diff/observation numbers in the completion report).\n"
         without_active = original.replace(definition, "", 1)
         wrappers = (
             ("longer backtick closer", "````text\n{} `````\n"),
@@ -1214,7 +1325,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
         readme = "README.md"
         original_readme = self.path(readme).read_text(encoding="utf-8")
         bullet = next(
-            line for line in original_readme.splitlines() if line.startswith("- `shipwright`")
+            line
+            for line in original_readme.splitlines()
+            if line.startswith("- `shipwright`")
         )
         for stale in stale_forms:
             with self.subTest(surface=readme, stale=stale):
@@ -1240,22 +1353,26 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 raise OSError("simulated read failure")
             return original_read_bytes(path)
 
-        with mock.patch.object(Path, "read_bytes", autospec=True, side_effect=fail_selected):
+        with mock.patch.object(
+            Path, "read_bytes", autospec=True, side_effect=fail_selected
+        ):
             self.assert_error("cannot inspect unreadable.asset")
 
-    def test_stale_scan_reports_unreadable_scoped_directory_when_permissions_apply(self) -> None:
+    def test_stale_scan_reports_unreadable_scoped_directory_when_permissions_apply(
+        self,
+    ) -> None:
         blocked = self.path("unreadable-directory")
         blocked.mkdir()
         legacy_skill = "-".join(("full", "dev"))
-        (blocked / "legacy-command").write_text("$" + legacy_skill + "\n", encoding="utf-8")
+        (blocked / "legacy-command").write_text(
+            "$" + legacy_skill + "\n", encoding="utf-8"
+        )
         blocked.chmod(0)
         try:
             errors = validate_bundle(self.repo_root)
         finally:
             blocked.chmod(0o700)
-        expected_fragment = (
-            "cannot inspect directory unreadable-directory"
-        )
+        expected_fragment = "cannot inspect directory unreadable-directory"
         if not any(expected_fragment in error for error in errors):
             self.skipTest("runtime can enumerate mode-000 directories")
         self.assertTrue(
@@ -1263,7 +1380,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
             errors,
         )
 
-    def test_stale_scan_reports_directory_enumeration_errors_through_walk_boundary(self) -> None:
+    def test_stale_scan_reports_directory_enumeration_errors_through_walk_boundary(
+        self,
+    ) -> None:
         failed = self.path("unreadable-directory")
 
         def fail_walk(top: Path, onerror: object = None) -> list[object]:
@@ -1277,8 +1396,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             errors = validate_bundle(self.repo_root)
         self.assertTrue(
             any(
-                "cannot inspect directory unreadable-directory"
-                in error
+                "cannot inspect directory unreadable-directory" in error
                 and "simulated enumeration failure" in error
                 for error in errors
             ),
@@ -1297,7 +1415,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
         git_object.write_bytes(b"\xff")
         self.assertEqual([], validate_bundle(self.repo_root))
 
-    def test_stale_scan_covers_historical_documents_inside_repository_root(self) -> None:
+    def test_stale_scan_covers_historical_documents_inside_repository_root(
+        self,
+    ) -> None:
         historical = self.path("docs/history.md")
         historical.parent.mkdir(parents=True)
         legacy_skill = "-".join(("full", "dev"))
@@ -1315,8 +1435,12 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "claude-other",
         )
         errors = validate_bundle(self.repo_root)
-        self.assertTrue(any(".codex-plugin/plugin.json" in error for error in errors), errors)
-        self.assertTrue(any("Claude controller gate" in error for error in errors), errors)
+        self.assertTrue(
+            any(".codex-plugin/plugin.json" in error for error in errors), errors
+        )
+        self.assertTrue(
+            any("Claude controller gate" in error for error in errors), errors
+        )
 
     def test_field_and_version_diagnostics_include_their_source_paths(self) -> None:
         codex_path = ".codex-plugin/plugin.json"
@@ -1334,12 +1458,15 @@ class ShipwrightValidatorTests(unittest.TestCase):
             (claude_path, "version"),
         ):
             self.assertTrue(
-                any(relative_path in error and field in error for error in errors), errors
+                any(relative_path in error and field in error for error in errors),
+                errors,
             )
 
     def test_main_success_contract(self) -> None:
         stdout = StringIO()
-        with mock.patch.object(validator, "_repository_root", return_value=self.repo_root):
+        with mock.patch.object(
+            validator, "_repository_root", return_value=self.repo_root
+        ):
             with redirect_stdout(stdout):
                 status = validator.main()
         self.assertEqual(0, status)
@@ -1349,7 +1476,9 @@ class ShipwrightValidatorTests(unittest.TestCase):
         missing = ".codex-plugin/plugin.json"
         self.path(missing).unlink()
         stdout = StringIO()
-        with mock.patch.object(validator, "_repository_root", return_value=self.repo_root):
+        with mock.patch.object(
+            validator, "_repository_root", return_value=self.repo_root
+        ):
             with redirect_stdout(stdout):
                 status = validator.main()
         self.assertEqual(1, status)
