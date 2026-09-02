@@ -445,35 +445,33 @@ def _forbid_markers(
             )
 
 
+_MARKDOWN_OPENING_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+_MARKDOWN_INDENTED_LINE_RE = re.compile(r"^(?: {4}| {0,3}\t)")
+
 def _active_markdown(markdown: str) -> str:
     """Return Markdown text outside fenced code blocks and HTML comments."""
 
     active_lines: list[str] = []
     in_comment = False
-    fence_character: Optional[str] = None
-    fence_length = 0
+    closing_fence_re: Optional[re.Pattern[str]] = None
 
     for original_line in markdown.splitlines():
-        if fence_character is not None:
-            closing_fence = re.fullmatch(
-                rf" {{0,3}}{re.escape(fence_character)}{{{fence_length},}}[ \t]*",
-                original_line,
-            )
-            if closing_fence is not None:
-                fence_character = None
-                fence_length = 0
+        if closing_fence_re is not None:
+            if closing_fence_re.fullmatch(original_line) is not None:
+                closing_fence_re = None
             continue
 
         if not in_comment:
-            opening_fence = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", original_line)
+            opening_fence = _MARKDOWN_OPENING_FENCE_RE.match(original_line)
             if opening_fence is not None:
                 marker = opening_fence.group(1)
                 info_string = opening_fence.group(2)
                 if marker[0] != "`" or "`" not in info_string:
-                    fence_character = marker[0]
-                    fence_length = len(marker)
+                    closing_fence_re = re.compile(
+                        rf" {{0,3}}{re.escape(marker[0])}{{{len(marker)},}}[ \t]*"
+                    )
                     continue
-            if re.match(r"^(?: {4}| {0,3}\t)", original_line):
+            if _MARKDOWN_INDENTED_LINE_RE.match(original_line):
                 continue
 
         line_parts: list[str] = []
@@ -523,7 +521,7 @@ def _active_markdown(markdown: str) -> str:
             cursor += 1
 
         line = "".join(line_parts)
-        if re.match(r"^(?: {4}| {0,3}\t)", line):
+        if _MARKDOWN_INDENTED_LINE_RE.match(line):
             continue
         active_lines.append(line)
 
