@@ -1225,6 +1225,23 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assert_error(readme)
         self.path(readme).write_text(original_readme, encoding="utf-8")
 
+    def test_read_text_reports_read_errors(self) -> None:
+        target = self.path("README.md")
+        original_read_text = Path.read_text
+
+        def fail_selected(path: Path, encoding: str | None = None, errors: str | None = None) -> str:
+            if path == target:
+                raise OSError("simulated read failure")
+            return original_read_text(path, encoding=encoding, errors=errors)
+
+        with mock.patch.object(Path, "read_text", autospec=True, side_effect=fail_selected):
+            validation_errors: list[str] = []
+            result = validator._read_text(self.repo_root, Path("README.md"), validation_errors)
+
+        self.assertIsNone(result)
+        self.assertEqual(1, len(validation_errors))
+        self.assertIn("cannot read README.md: simulated read failure", validation_errors[0])
+
     def test_stale_scan_reports_undecodable_and_unreadable_scoped_files(self) -> None:
         undecodable = self.path("undecodable.asset")
         undecodable.write_bytes(b"\xff\xfe\xfd")
