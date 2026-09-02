@@ -1225,6 +1225,22 @@ class ShipwrightValidatorTests(unittest.TestCase):
                 self.assert_error(readme)
         self.path(readme).write_text(original_readme, encoding="utf-8")
 
+    def test_contains_stale_name(self) -> None:
+        legacy = "full" + "-dev"
+        cases = {
+            f"hello ${legacy} world": True,
+            f"path/to/{legacy}": True,
+            f"path_to_{legacy}": False,
+            f"{legacy}-worker": True,
+            f"{legacy}-": True,
+            legacy: False,
+            "completely unrelated": False,
+            "": False,
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertIs(expected, validator._contains_stale_name(text))
+
     def test_stale_scan_reports_undecodable_and_unreadable_scoped_files(self) -> None:
         undecodable = self.path("undecodable.asset")
         undecodable.write_bytes(b"\xff\xfe\xfd")
