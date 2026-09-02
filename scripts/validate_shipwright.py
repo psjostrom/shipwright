@@ -43,6 +43,10 @@ CURSOR_INVOCATION_DOC = "`/shipwright` in Cursor"
 _CURSOR_BARE_INVOCATION_RE = re.compile(
     r"(?:`/shipwright`|(?<![/\w])/shipwright(?![/\w:]))"
 )
+_QA_OUTCOME_REGEXES = {
+    outcome: re.compile(rf"^ {{0,3}}-\s+`{re.escape(outcome)}`:\s+\S.*$", re.MULTILINE)
+    for outcome in ("verified", "partially verified", "unverified")
+}
 DEFAULT_PROMPT = (
     "Use $shipwright:shipwright to build this feature end to end with independent "
     "review and real verification."
@@ -952,9 +956,7 @@ def _validate_skill_and_contracts(
     if skill_text is not None:
         active_skill_text = _active_markdown(skill_text)
         for outcome in ("verified", "partially verified", "unverified"):
-            definition = re.compile(
-                rf"^ {{0,3}}-\s+`{re.escape(outcome)}`:\s+\S.*$", re.MULTILINE
-            )
+            definition = _QA_OUTCOME_REGEXES[outcome]
             if definition.search(active_skill_text) is None:
                 errors.append(
                     f"{_display(SKILL)} is missing standalone QA outcome definition "
