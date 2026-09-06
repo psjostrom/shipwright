@@ -120,9 +120,7 @@ def _valid_codex_version(value: Any) -> bool:
     )
 
 
-def _validate_manifests(
-    codex: Any, claude: Any, cursor: Any, antigravity: Any, errors: list[str]
-) -> None:
+def _validate_codex_manifest(codex: Any, errors: list[str]) -> None:
     if isinstance(codex, dict):
         _require_equal(codex, ("name",), "shipwright", "Codex manifest name", CODEX_MANIFEST, errors)
         if not _valid_codex_version(codex.get("version")):
@@ -176,6 +174,8 @@ def _validate_manifests(
     elif codex is not None:
         errors.append(f"{_display(CODEX_MANIFEST)}: Codex manifest root must be a JSON object")
 
+
+def _validate_claude_manifest(claude: Any, errors: list[str]) -> None:
     if isinstance(claude, dict):
         _require_equal(claude, ("name",), "shipwright", "Claude manifest name", CLAUDE_MANIFEST, errors)
         # Claude omits version so updates track git commit SHA. Cursor/Codex keep
@@ -192,6 +192,8 @@ def _validate_manifests(
     elif claude is not None:
         errors.append(f"{_display(CLAUDE_MANIFEST)}: Claude manifest root must be a JSON object")
 
+
+def _validate_cursor_manifest(cursor: Any, errors: list[str]) -> None:
     if isinstance(cursor, dict):
         _require_equal(cursor, ("name",), "shipwright", "Cursor manifest name", CURSOR_MANIFEST, errors)
         if cursor.get("version") != "1.0.0":
@@ -225,6 +227,8 @@ def _validate_manifests(
     elif cursor is not None:
         errors.append(f"{_display(CURSOR_MANIFEST)}: Cursor manifest root must be a JSON object")
 
+
+def _validate_antigravity_manifest(antigravity: Any, errors: list[str]) -> None:
     if isinstance(antigravity, dict):
         _require_equal(antigravity, ("name",), "shipwright", "Antigravity manifest name", ANTIGRAVITY_MANIFEST, errors)
         if "version" in antigravity:
@@ -235,6 +239,15 @@ def _validate_manifests(
         _require_equal(antigravity, ("description",), DESCRIPTION, "Antigravity manifest description", ANTIGRAVITY_MANIFEST, errors)
     elif antigravity is not None:
         errors.append(f"{_display(ANTIGRAVITY_MANIFEST)}: Antigravity manifest root must be a JSON object")
+
+
+def _validate_manifests(
+    codex: Any, claude: Any, cursor: Any, antigravity: Any, errors: list[str]
+) -> None:
+    _validate_codex_manifest(codex, errors)
+    _validate_claude_manifest(claude, errors)
+    _validate_cursor_manifest(cursor, errors)
+    _validate_antigravity_manifest(antigravity, errors)
 
 
 
