@@ -283,6 +283,17 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
         self.assertTrue(any("malformed single-quoted scalar" in error for error in errors))
 
+        errors = []
+        self.assertIsNone(
+            validator._parse_yaml_scalar(
+                '"bad json',
+                Path("metadata.yaml"),
+                1,
+                errors,
+            )
+        )
+        self.assertTrue(any("malformed double-quoted scalar" in error for error in errors))
+
     def test_skill_frontmatter_parser_accepts_commented_mapping_keys(self) -> None:
         errors: list[str] = []
         frontmatter = validator._parse_frontmatter(
