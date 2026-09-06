@@ -9,6 +9,41 @@ Shipwright is deliberately stricter than a normal implementation prompt. It
 checks the active harness and model floor, preserves unrelated work, requires
 independent review, and refuses to call incomplete QA complete.
 
+## Install
+
+### Claude Code
+
+```sh
+claude plugin marketplace add psjostrom/agent-plugins
+claude plugin install shipwright@agent-plugins
+```
+
+### Codex
+
+```sh
+codex plugin marketplace add psjostrom/agent-plugins
+codex plugin add shipwright@agent-plugins
+```
+
+Start a new task after installation so Codex discovers the skill.
+
+### Cursor
+
+The public marketplace listing is not available. Load this repository as a
+local Cursor plugin and install Superpowers 6.1.1 or newer separately.
+
+### Antigravity
+
+```sh
+agy plugin install https://github.com/psjostrom/shipwright
+# Or from a local clone:
+agy plugin install .
+```
+
+OpenCode is not supported.
+
+## Workflow
+
 ```text
 [Preflight] -> [Design + plan]
                     |
@@ -291,7 +326,7 @@ analysis, builds, focused tests, full relevant suites, package/documentation
 validators, and the requested user flow. Base measurements are recorded where
 pre-existing failures exist; the bar is no new failure versus base.
 
-Old worker reports do not prove completion.
+A worker report alone does not prove completion.
 
 ## Real-world QA
 
@@ -344,17 +379,9 @@ QA state and evidence paths, remaining risks, temporary evidence, and
 integration options. It does not push, open a PR, deploy, publish, or merge
 without authorization.
 
-## Harness details
+## Platform behavior
 
 ### Codex
-
-Install through the Shipwright entry in the thin `agent-plugins` catalog, then
-start a new task:
-
-```sh
-codex plugin marketplace add psjostrom/agent-plugins
-codex plugin add shipwright@agent-plugins
-```
 
 Invoke `$shipwright:shipwright`. Codex dispatches with its collaboration
 operation when available. If the schema lacks model/effort selectors, the
@@ -362,13 +389,6 @@ inherited Sol fallback is the only permitted fallback after the controller
 floor passes.
 
 ### Claude Code
-
-Install through the Shipwright entry in the Agent Plugins catalog:
-
-```sh
-claude plugin marketplace add psjostrom/agent-plugins
-claude plugin install shipwright@agent-plugins
-```
 
 Invoke `/shipwright:shipwright`. The controller gate requires a resolved Opus
 `4.6+`; specialist routing defaults to Haiku for mechanical work, Sonnet for
@@ -378,10 +398,8 @@ children write report files.
 
 ### Cursor
 
-The standalone Shipwright Cursor marketplace listing is pending review and is
-not yet available to install. Once accepted, install Superpowers `6.1.1+`
-separately and invoke `/shipwright`. The controller gate requires a model
-resolved to Grok `4.5` or newer.
+Invoke `/shipwright`. The controller gate requires a model resolved to Grok
+`4.5` or newer.
 Cursor maps mechanical/ordinary work to Composer and integration/critical work
 to Grok, with the effort floors shown above. Do not describe GPT Luna/Terra/Sol
 as Cursor worker runtimes; they are not allowlisted here.
@@ -391,14 +409,6 @@ as Cursor worker runtimes; they are not allowlisted here.
 OpenCode is unsupported.
 
 ### Antigravity
-
-Install directly from GitHub or local directory:
-
-```sh
-agy plugin install https://github.com/psjostrom/shipwright
-# Or from local clone:
-agy plugin install .
-```
 
 Invoke `/shipwright` (or launch with `agy --model flash --effort high`). Shipwright requires Gemini 3.7 Flash or newer as controller floor (recommending high effort) and dispatches worker/reviewer subagents via `invoke_subagent`.
 
