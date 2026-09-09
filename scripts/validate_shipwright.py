@@ -55,6 +55,9 @@ CODEX_INSTALL_ROUTE = (
     "codex plugin marketplace add psjostrom/agent-plugins\n"
     "codex plugin add shipwright@agent-plugins"
 )
+CONTROLLER_EFFORT_RULE = (
+    "Never stop solely because controller effort is missing, weak, or unverifiable"
+)
 
 def _has_cursor_invocation(text: str) -> bool:
     """True when text contains bare /shipwright, not only /shipwright:shipwright."""
@@ -851,7 +854,7 @@ def _validate_skill_and_contracts(
                 "§13 impossible observation stays non-passing",
             ),
             (
-                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                CONTROLLER_EFFORT_RULE,
                 "controller effort never hard-stops",
             ),
             (
@@ -996,7 +999,7 @@ def _validate_skill_and_contracts(
                 "Codex controller evidence rejection",
             ),
             (
-                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                CONTROLLER_EFFORT_RULE,
                 "Codex controller effort never hard-stops",
             ),
             ("| Mechanical | Luna 5.6+ / Max |", "Codex worker routing mechanical"),
@@ -1099,7 +1102,7 @@ def _validate_skill_and_contracts(
                 "Claude worker family vs controller version",
             ),
             (
-                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                CONTROLLER_EFFORT_RULE,
                 "Claude controller effort never hard-stops",
             ),
         ),
@@ -1172,7 +1175,7 @@ def _validate_skill_and_contracts(
             ("family dimension only", "Cursor harness family-only evidence"),
             ("Compose dimensions", "Cursor composite family/effort evidence"),
             (
-                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                CONTROLLER_EFFORT_RULE,
                 "Cursor controller effort never hard-stops",
             ),
             ("Composer < Grok", "Cursor worker family order"),
@@ -1200,7 +1203,7 @@ def _validate_skill_and_contracts(
             ),
             ("select **Gemini 3.7 Flash or newer**", "Antigravity controller gate guidance"),
             (
-                "Never stop solely because controller effort is missing, weak, or unverifiable",
+                CONTROLLER_EFFORT_RULE,
                 "Antigravity controller effort never hard-stops",
             ),
             ("| Mechanical | `flash_lite` or `flash` |", "Antigravity worker routing mechanical"),
