@@ -89,6 +89,17 @@ class ShipwrightValidatorTests(unittest.TestCase):
         with mock.patch.object(Path, "read_text", autospec=True, side_effect=fail_read):
             self.assert_error("malformed JSON")
 
+    def test_missing_codex_manifest_error_path(self) -> None:
+        path = self.path(".codex-plugin/plugin.json")
+        path.unlink()
+
+        expected_error = "missing required " + "JSON file: .codex-plugin/plugin.json"
+
+        errors = validate_bundle(self.repo_root)
+        self.assertTrue(any(expected_error in error for error in errors), errors)
+
+        self.assertFalse(any("Codex interface" in error for error in errors), errors)
+
     def test_reports_undecodable_text_file(self) -> None:
         path = self.path("skills/shipwright/agents/openai.yaml")
         path.write_bytes(b"\xff\xfe\xfd")
