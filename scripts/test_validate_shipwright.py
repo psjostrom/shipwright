@@ -89,6 +89,18 @@ class ShipwrightValidatorTests(unittest.TestCase):
         with mock.patch.object(Path, "read_text", autospec=True, side_effect=fail_read):
             self.assert_error("malformed JSON")
 
+    def test_load_json_with_mocked_read_text_returning_invalid_json(self) -> None:
+        path = self.path(".codex-plugin/plugin.json")
+        original_read_text = Path.read_text
+
+        def invalid_json_read(p: Path, **kwargs: object) -> str:
+            if p == path:
+                return "{this-is-not-json}"
+            return original_read_text(p, **kwargs)
+
+        with mock.patch.object(Path, "read_text", autospec=True, side_effect=invalid_json_read):
+            self.assert_error("malformed JSON")
+
     def test_reports_undecodable_text_file(self) -> None:
         path = self.path("skills/shipwright/agents/openai.yaml")
         path.write_bytes(b"\xff\xfe\xfd")
@@ -145,6 +157,21 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.replace(skill, "disable-model-invocation: false", "disable-model-invocation: true")
         self.replace(skill, "disable-model-invocation: true\n", "")
         self.assert_error("frontmatter keys")
+
+    def test_reports_manifest_root_not_json_object(self) -> None:
+        for relative_path, error_fragment in (
+            (".codex-plugin/plugin.json", "Codex manifest root must be a JSON object"),
+            (".claude-plugin/plugin.json", "Claude manifest root must be a JSON object"),
+            (".cursor-plugin/plugin.json", "Cursor manifest root must be a JSON object"),
+            ("plugin.json", "Antigravity manifest root must be a JSON object"),
+        ):
+            with self.subTest(path=relative_path):
+                original_manifest = self.read_json(relative_path)
+                try:
+                    self.write_json(relative_path, [])
+                    self.assert_error(error_fragment)
+                finally:
+                    self.write_json(relative_path, original_manifest)
 
     def test_reports_wrong_manifest_names(self) -> None:
         for relative_path in (
