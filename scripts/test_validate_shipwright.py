@@ -39,6 +39,14 @@ class ShipwrightValidatorTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
 
+    def test_display(self) -> None:
+        from pathlib import PurePosixPath, PureWindowsPath
+        posix_path = PurePosixPath("/absolute/path/to/file.txt")
+        self.assertEqual(validator._display(posix_path), "/absolute/path/to/file.txt")
+
+        windows_path = PureWindowsPath("C:\\absolute\\path\\to\\file.txt")
+        self.assertEqual(validator._display(windows_path), "C:/absolute/path/to/file.txt")
+
     def path(self, relative_path: str) -> Path:
         return self.repo_root / relative_path
 
