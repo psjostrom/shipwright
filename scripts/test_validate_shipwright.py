@@ -64,6 +64,10 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
         return errors
 
+
+    def test_valid_codex_version_rejects_invalid_cachebuster(self) -> None:
+        self.assertFalse(validator._valid_codex_version("1.0.0+codex.BAD_CHARS"))
+
     def test_valid_bundle_has_no_errors(self) -> None:
         self.assertEqual([], validate_bundle(self.repo_root))
 
