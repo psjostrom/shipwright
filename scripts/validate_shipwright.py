@@ -43,6 +43,7 @@ CURSOR_INVOCATION_DOC = "`/shipwright` in Cursor"
 _CURSOR_BARE_INVOCATION_RE = re.compile(
     r"(?:`/shipwright`|(?<![/\w])/shipwright(?![/\w:]))"
 )
+_YAML_MAPPING_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_-]*):(?:[ ]*(.*))?")
 _QA_OUTCOME_REGEXES = {
     outcome: re.compile(rf"^ {{0,3}}-\s+`{re.escape(outcome)}`:\s+\S.*$", re.MULTILINE)
     for outcome in ("verified", "partially verified", "unverified")
@@ -354,7 +355,7 @@ def _parse_constrained_yaml(
                 f"{_display(relative_path)}:{line_number}: YAML indentation must use two-space levels"
             )
             continue
-        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):(?:[ ]*(.*))?", line[indentation:])
+        match = _YAML_MAPPING_RE.fullmatch(line[indentation:])
         if match is None:
             errors.append(
                 f"{_display(relative_path)}:{line_number}: unsupported YAML mapping line: {line!r}"
