@@ -325,6 +325,19 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
         self.assertTrue(any("malformed single-quoted scalar" in error for error in errors))
 
+        for bad_quote in ("'", "'unterminated"):
+            with self.subTest(bad_quote=bad_quote):
+                errors = []
+                self.assertIsNone(
+                    validator._parse_yaml_scalar(
+                        bad_quote,
+                        Path("metadata.yaml"),
+                        1,
+                        errors,
+                    )
+                )
+                self.assertTrue(any("malformed single-quoted scalar" in error for error in errors))
+
         errors = []
         self.assertIsNone(
             validator._parse_yaml_scalar(
