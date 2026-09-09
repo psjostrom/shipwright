@@ -67,6 +67,14 @@ class ShipwrightValidatorTests(unittest.TestCase):
     def test_valid_bundle_has_no_errors(self) -> None:
         self.assertEqual([], validate_bundle(self.repo_root))
 
+    def test_value_at(self) -> None:
+        self.assertEqual(1, validator._value_at({"a": {"b": 1}}, "a", "b"))
+        self.assertEqual({"a": 1}, validator._value_at({"a": 1}))
+        self.assertIsNone(validator._value_at({"a": 1}, "b"))
+        self.assertIsNone(validator._value_at({"a": {"b": 1}}, "a", "c"))
+        self.assertIsNone(validator._value_at({"a": 1}, "a", "b"))
+        self.assertIsNone(validator._value_at(1, "a"))
+
     def test_reports_malformed_json(self) -> None:
         path = self.path(".codex-plugin/plugin.json")
         path.write_text("{not-json\n", encoding="utf-8")
