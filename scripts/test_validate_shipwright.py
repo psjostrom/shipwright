@@ -1354,6 +1354,28 @@ class ShipwrightValidatorTests(unittest.TestCase):
             errors,
         )
 
+    def test_stale_scan_reports_directory_enumeration_errors_fallback_path(self) -> None:
+        failed_path = "/outside/path"
+
+        def fail_walk(top: Path, onerror: object = None) -> list[object]:
+            self.assertEqual(self.path("."), Path(top))
+            self.assertIsNotNone(onerror)
+            error = PermissionError(13, "simulated enumeration failure", failed_path)
+            onerror(error)  # type: ignore[operator]
+            return []
+
+        with mock.patch.object(validator.os, "walk", side_effect=fail_walk):
+            errors = validate_bundle(self.repo_root)
+
+        self.assertTrue(
+            any(
+                f"cannot inspect directory {failed_path}" in error
+                and "simulated enumeration failure" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_stale_scan_skips_only_nul_marked_binary_files(self) -> None:
         binary = self.path("image.bin")
         legacy_skill = "-".join(("full", "dev")).encode()
