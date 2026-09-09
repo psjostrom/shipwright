@@ -1297,7 +1297,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
     def test_stale_scan_reports_undecodable_and_unreadable_scoped_files(self) -> None:
         undecodable = self.path("undecodable.asset")
         undecodable.write_bytes(b"\xff\xfe\xfd")
-        self.assert_error("cannot inspect undecodable.asset")
+        self.assert_error("cannot inspect undecodable.asset for stale names: not valid UTF-8")
         undecodable.unlink()
 
         unreadable = self.path("unreadable.asset")
