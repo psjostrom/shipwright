@@ -175,6 +175,7 @@ class ShipwrightValidatorTests(unittest.TestCase):
             "1.0.0-dev",
             "1.0.0+other.token",
             "1.0.0+codex.UPPER",
+            "1.0.0+codex.BAD_CHARS",
             "1.0.0+codex.double--dash",
             "1.0.0+codex.-leading",
         ):
