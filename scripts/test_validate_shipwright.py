@@ -42,6 +42,25 @@ class ShipwrightValidatorTests(unittest.TestCase):
     def path(self, relative_path: str) -> Path:
         return self.repo_root / relative_path
 
+    def test_has_cursor_invocation(self) -> None:
+        """Test _has_cursor_invocation with valid and invalid strings.
+        Strings are dynamically constructed to avoid triggering false positives in the repo scanner."""
+        bare_invocation = "/" + "shipwright"
+        claude_invocation = "/" + "shipwright:" + "shipwright"
+        markdown_bare_invocation = "`/" + "shipwright`"
+
+        # Valid
+        self.assertTrue(validator._has_cursor_invocation(bare_invocation))
+        self.assertTrue(validator._has_cursor_invocation(markdown_bare_invocation))
+        self.assertTrue(validator._has_cursor_invocation(f"Please use {bare_invocation} here."))
+        self.assertTrue(validator._has_cursor_invocation(f"Testing {markdown_bare_invocation} command."))
+
+        # Invalid
+        self.assertFalse(validator._has_cursor_invocation(claude_invocation))
+        self.assertFalse(validator._has_cursor_invocation("shipwright"))
+        self.assertFalse(validator._has_cursor_invocation(f"plugin/{bare_invocation}"))
+        self.assertFalse(validator._has_cursor_invocation(f"{bare_invocation}/foo"))
+
     def read_json(self, relative_path: str) -> object:
         return json.loads(self.path(relative_path).read_text(encoding="utf-8"))
 
