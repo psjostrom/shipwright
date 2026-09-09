@@ -1289,6 +1289,11 @@ class ShipwrightValidatorTests(unittest.TestCase):
             legacy: False,
             "completely unrelated": False,
             "": False,
+            f"{legacy.upper()}-": False,
+            f"/${legacy}": True,
+            f"/{legacy}-": True,
+            f" {legacy} ": False,
+            f"some-prefix-{legacy}": False,
         }
         for text, expected in cases.items():
             with self.subTest(text=text):
