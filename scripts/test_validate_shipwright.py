@@ -64,6 +64,16 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
         return errors
 
+    def test_yaml_top_level_key_must_not_be_indented(self) -> None:
+        metadata = "skills/shipwright/agents/openai.yaml"
+        original = self.path(metadata).read_text(encoding="utf-8")
+        indented = original.replace("interface:", "  interface:", 1)
+        try:
+            self.path(metadata).write_text(indented, encoding="utf-8")
+            self.assert_error("top-level YAML key must not be indented")
+        finally:
+            self.path(metadata).write_text(original, encoding="utf-8")
+
     def test_valid_bundle_has_no_errors(self) -> None:
         self.assertEqual([], validate_bundle(self.repo_root))
 
