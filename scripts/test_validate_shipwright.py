@@ -235,6 +235,19 @@ class ShipwrightValidatorTests(unittest.TestCase):
         )
         self.assert_error("frontmatter name")
 
+    def test_reports_duplicate_yaml_key(self) -> None:
+        skill = "skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        try:
+            self.replace(
+                skill,
+                "name: shipwright",
+                "name: shipwright\nname: shipwright2",
+            )
+            self.assert_error("duplicate Y" + "AML key")
+        finally:
+            self.path(skill).write_text(original, encoding="utf-8")
+
     def test_skill_frontmatter_accepts_supported_quotes(self) -> None:
         skill = "skills/shipwright/SKILL.md"
         self.replace(skill, "name: shipwright", 'name: "shipwright"')
