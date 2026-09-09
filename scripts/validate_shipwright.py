@@ -55,6 +55,9 @@ CODEX_INSTALL_ROUTE = (
     "codex plugin marketplace add psjostrom/agent-plugins\n"
     "codex plugin add shipwright@agent-plugins"
 )
+RECOMMENDED_CONTROLLER_EFFORT_NOT_A_PRECONDITION = (
+    "Recommended controller effort is not a precondition"
+)
 
 def _has_cursor_invocation(text: str) -> bool:
     """True when text contains bare /shipwright, not only /shipwright:shipwright."""
@@ -675,7 +678,7 @@ def _validate_skill_and_contracts(
                 "§3 reduced path no unrequested project config",
             ),
             (
-                "Recommended controller effort is not a precondition",
+                RECOMMENDED_CONTROLLER_EFFORT_NOT_A_PRECONDITION,
                 "shared controller effort disclosure rule",
             ),
             (
@@ -987,7 +990,7 @@ def _validate_skill_and_contracts(
                 "Codex recommended controller effort",
             ),
             (
-                "Recommended controller effort is not a precondition",
+                RECOMMENDED_CONTROLLER_EFFORT_NOT_A_PRECONDITION,
                 "Codex controller effort not a precondition",
             ),
             ("select **GPT-5.6 Sol or newer**", "Codex controller gate guidance"),
@@ -1045,7 +1048,7 @@ def _validate_skill_and_contracts(
                 "Claude recommended controller effort",
             ),
             (
-                "Recommended controller effort is not a precondition",
+                RECOMMENDED_CONTROLLER_EFFORT_NOT_A_PRECONDITION,
                 "Claude controller effort not a precondition",
             ),
             ("select **Opus 4.6 or newer**", "Claude controller gate guidance"),
@@ -1164,7 +1167,7 @@ def _validate_skill_and_contracts(
                 "Cursor recommended controller effort",
             ),
             (
-                "Recommended controller effort is not a precondition",
+                RECOMMENDED_CONTROLLER_EFFORT_NOT_A_PRECONDITION,
                 "Cursor controller effort not a precondition",
             ),
             ("select **Grok 4.5 or newer**", "Cursor controller gate guidance"),
@@ -1195,7 +1198,7 @@ def _validate_skill_and_contracts(
                 "Antigravity recommended controller effort",
             ),
             (
-                "Recommended controller effort is not a precondition",
+                RECOMMENDED_CONTROLLER_EFFORT_NOT_A_PRECONDITION,
                 "Antigravity controller effort not a precondition",
             ),
             ("select **Gemini 3.7 Flash or newer**", "Antigravity controller gate guidance"),
