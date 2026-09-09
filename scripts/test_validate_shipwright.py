@@ -351,6 +351,17 @@ class ShipwrightValidatorTests(unittest.TestCase):
         self.replace(metadata, "policy:\n", "policy: # invocation policy\n")
         self.assertEqual([], validate_bundle(self.repo_root))
 
+    def test_reports_unsupported_yaml_mapping_line(self) -> None:
+        skill = "skills/shipwright/SKILL.md"
+        original = self.path(skill).read_text(encoding="utf-8")
+        # Add an unsupported YAML list mapping line
+        modified = original.replace("name: shipwright", "name: shipwright\n- item", 1)
+        self.path(skill).write_text(modified, encoding="utf-8")
+        try:
+            self.assert_error("unsupported YAML mapping line")
+        finally:
+            self.path(skill).write_text(original, encoding="utf-8")
+
     def test_skill_frontmatter_rejects_inactive_malformed_nested_and_duplicate_fields(self) -> None:
         skill = "skills/shipwright/SKILL.md"
         original = self.path(skill).read_text(encoding="utf-8")
