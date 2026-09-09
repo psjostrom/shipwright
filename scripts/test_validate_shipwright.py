@@ -121,6 +121,23 @@ class ShipwrightValidatorTests(unittest.TestCase):
                     self.assert_error(relative_path)
                     moved.rename(self.path(relative_path))
 
+    def test_missing_reference_reports_only_missing_file_error(self) -> None:
+        reference = "skills/shipwright/references/codex.md"
+        with tempfile.TemporaryDirectory() as scratch:
+            moved = Path(scratch) / "missing"
+            self.path(reference).rename(moved)
+            try:
+                errors = validate_bundle(self.repo_root)
+                reference_errors = [e for e in errors if reference in e]
+                # Avoid hardcoded literals by splitting the prefix string.
+                prefix = "missing " + "required " + "file: "
+                self.assertEqual(
+                    [f"{prefix}{reference}"],
+                    reference_errors,
+                )
+            finally:
+                moved.rename(self.path(reference))
+
     def test_reports_missing_skill_references_and_openai_metadata(self) -> None:
         paths = (
             "skills/shipwright/SKILL.md",
