@@ -138,6 +138,21 @@ class ShipwrightValidatorTests(unittest.TestCase):
                     self.assert_error(relative_path)
                     moved.rename(self.path(relative_path))
 
+    def test_missing_files_yield_no_cascading_marker_errors(self) -> None:
+        relative_path = "skills/shipwright/references/codex.md"
+        with tempfile.TemporaryDirectory() as scratch:
+            moved = Path(scratch) / "missing"
+            self.path(relative_path).rename(moved)
+            try:
+                errors = validate_bundle(self.repo_root)
+                self.assertEqual(
+                    [f"missing required file: {relative_path}"],
+                    errors,
+                    "missing file should not cascade to missing-marker errors",
+                )
+            finally:
+                moved.rename(self.path(relative_path))
+
     def test_requires_disable_model_invocation_frontmatter(self) -> None:
         skill = "skills/shipwright/SKILL.md"
         self.replace(skill, "disable-model-invocation: true", "disable-model-invocation: false")
